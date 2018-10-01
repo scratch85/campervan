@@ -226,7 +226,7 @@ void loop() {
     strBluetooth = Serial2.readString();
   }
   // ... and process inputs
-  strBluetooth = strBluetooth.trim();
+  strBluetooth.trim();
   if(strBluetooth.length() > 0) {
     DEBUG_PRINT("Bluetooth: ");
     DEBUG_PRINT(strBluetooth);
@@ -241,7 +241,7 @@ void loop() {
     strSerial = Serial.readString();
   }
   // ... and process inputs
-  strSerial = strSerial.trim();
+  strSerial.trim();
   if(strSerial.length() > 0) {
     DEBUG_PRINT("Serial: ");
     DEBUG_PRINT(strSerial);
@@ -672,7 +672,7 @@ void processSerialInput(String data) {
 }
 
 // Set all LEDs of the stripe to the same color
-void stripeSetColor(String &name, Adafruit_NeoPixel &stripe, uint32_t c) {
+void stripeSetColor(String name, Adafruit_NeoPixel &stripe, uint32_t c) {
   DEBUG_PRINT("stripeSetColor (");
   DEBUG_PRINT(name);
   DEBUG_PRINT(", ");
@@ -687,7 +687,7 @@ void stripeSetColor(String &name, Adafruit_NeoPixel &stripe, uint32_t c) {
   DEBUG_PRINT("stripeSetColor: done\n");
 }
 
-void stripeRainbow(String &name, Adafruit_NeoPixel &stripe) {
+void stripeRainbow(String name, Adafruit_NeoPixel &stripe) {
   static uint16_t j = 0;
 
   //DEBUG_PRINT("stripeRainbow(");
@@ -705,7 +705,7 @@ void stripeRainbow(String &name, Adafruit_NeoPixel &stripe) {
 }
 
 // Slightly different, this makes the rainbow equally distributed throughout
-void stripeRainbowCycle(String &name, Adafruit_NeoPixel &stripe) {
+void stripeRainbowCycle(String name, Adafruit_NeoPixel &stripe) {
   static uint16_t j = 0;
 
   //DEBUG_PRINT("stripeRainbowCycle(");
@@ -723,7 +723,7 @@ void stripeRainbowCycle(String &name, Adafruit_NeoPixel &stripe) {
   //DEBUG_PRINT("stripeRainbowCycle: done\n");
 }
 
-void stripeKnightRider(String &name, Adafruit_NeoPixel &stripe, uint32_t c) {
+void stripeKnightRider(String name, Adafruit_NeoPixel &stripe, uint32_t c) {
   static uint16_t j = 0;
   uint16_t x = 2;
   uint16_t m = 0;
@@ -771,7 +771,7 @@ uint32_t Wheel(Adafruit_NeoPixel &stripe, byte WheelPos) {
 }
 
 // Returns true if at least one of the LEDs of the stipe is glowing
-bool stripeGetState(String &name, Adafruit_NeoPixel &stripe) {
+bool stripeGetState(String name, Adafruit_NeoPixel &stripe) {
   DEBUG_PRINT("stripeGetState(");
   DEBUG_PRINT(name);
   DEBUG_PRINT(")\n");
