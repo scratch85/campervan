@@ -725,8 +725,9 @@ void stripeRainbowCycle(String name, Adafruit_NeoPixel &stripe) {
 
 void stripeKnightRider(String name, Adafruit_NeoPixel &stripe, uint32_t c) {
   static uint16_t j = 0;
+  static uint16_t m = 0;
   uint16_t x = 2;
-  uint16_t m = 0;
+  
 
   //DEBUG_PRINT("stripeKnightRider(");
   //DEBUG_PRINT(name);
