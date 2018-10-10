@@ -608,67 +608,97 @@ void loop() {
 }
 
 void processSerialInput(String data) {
-  if(data.equalsIgnoreCase("status")) {
-    DEBUG_PRINT("Status\n");
-    DEBUG_PRINT("---------------\n");
-    DEBUG_PRINT("Temp.: ");
-    DEBUG_PRINT(String(tmp36.getTempC()));
-    DEBUG_PRINT("°C\n");
-    DEBUG_PRINT("---------------\n");
-  } else if(data.equalsIgnoreCase("l1")) {
-    led1Val = 128;
-  } else if(data.equalsIgnoreCase("l1-")) {
-    led1Val = max(0,led1Val - (254 * 0.1));
-  } else if(data.equalsIgnoreCase("l2")) {
-    led2Val = 128;
-  } else if(data.equalsIgnoreCase("l2-")) {
-    led2Val = max(0,led2Val - (254 * 0.1));
-  } else if(data.equalsIgnoreCase("l3")) {
-    led3Val = 128;
-  } else if(data.equalsIgnoreCase("l3-")) {
-    led3Val = max(0,led3Val - (254 * 0.1));
-  } else if(data.equalsIgnoreCase("on")) {
-    led1Val = 128;
-    led2Val = 128;
-    led3Val = 128;
-  } else if(data.equalsIgnoreCase("off")) {
+  String v1;
+  data.toLowerCase();
+  if(data.startsWith("status")) {
+    v1 = split(data,' ',1);
+    if(v1.equals("s1")) {
+      DEBUG_PRINT("ledstrip1: ");
+      DEBUG_PRINT(stripeGetState(ledstripes1_name, ledstripes_obj[0]));
+      DEBUG_PRINT("\n");
+    } else {
+      DEBUG_PRINT("Status\n");
+      DEBUG_PRINT("---------------\n");
+      DEBUG_PRINT("Temp.: ");
+      DEBUG_PRINT(String(tmp36.getTempC()));
+      DEBUG_PRINT("°C\n");
+      DEBUG_PRINT("---------------\n");
+    }
+  } else if(data.startsWith("l1")) {
+    v1 = split(data,' ',1);
+    led1Val = sanitizeValue(v1, 128, 0, 255);
+  } else if(data.startsWith("l2")) {
+    v1 = split(data,' ',1);
+    led2Val = sanitizeValue(v1, 128, 0, 255);
+  } else if(data.startsWith("l3")) {
+    v1 = split(data,' ',1);
+    led3Val = sanitizeValue(v1, 128, 0, 255);
+  } else if(data.startsWith("on")) {
+    v1 = split(data,' ',1);
+    led1Val = sanitizeValue(v1, 128, 0, 255);
+    led2Val = led1Val;
+    led3Val = led1Val;
+  } else if(data.equals("off")) {
     led1Val = 0;
     led2Val = 0;
     led3Val = 0;
-  } else if(data.equalsIgnoreCase("s1w")) {
+  } else if(data.equals("s1w")) {
     stripeSetColor(ledstripes1_name, ledstripes_obj[0], WHITE_LED);
     ledstripes1_effect = 0;
-  } else if(data.equalsIgnoreCase("s1r")) {
+  } else if(data.equals("s1r")) {
     stripeSetColor(ledstripes1_name, ledstripes_obj[0], RED);
     ledstripes1_effect = 0;
-  } else if(data.equalsIgnoreCase("s1g")) {
+  } else if(data.equals("s1g")) {
     stripeSetColor(ledstripes1_name, ledstripes_obj[0], GREEN);
     ledstripes1_effect = 0;
-  } else if(data.equalsIgnoreCase("s1b")) {
+  } else if(data.equals("s1b")) {
     stripeSetColor(ledstripes1_name, ledstripes_obj[0], BLUE);
     ledstripes1_effect = 0;
-  } else if(data.equalsIgnoreCase("s1off")) {
+  } else if(data.equals("s1off")) {
     stripeSetColor(ledstripes1_name, ledstripes_obj[0], BLACK);
     ledstripes1_effect = 0;
-  } else if(data.equalsIgnoreCase("s1rb")) {
+  } else if(data.equals("s1rb")) {
     ledstripes1_effect = 1;
-  } else if(data.equalsIgnoreCase("s1rbc")) {
+  } else if(data.equals("s1rbc")) {
     ledstripes1_effect = 2;
-  } else if(data.equalsIgnoreCase("s1kr")) {
+  } else if(data.equals("s1kr")) {
     ledstripes1_effect = 3;
-  } else if(data.equalsIgnoreCase("s1+")) {
+  } else if(data.equals("s1+")) {
     ledstripes1_updateInterval = max(10,ledstripes1_updateInterval - 10);
     DEBUG_PRINT("ledstripes1_updateInterval: ");
     DEBUG_PRINT(ledstripes1_updateInterval);
     DEBUG_PRINT("\n");
-  } else if(data.equalsIgnoreCase("s1-")) {
+  } else if(data.equals("s1-")) {
     ledstripes1_updateInterval = min(1000,ledstripes1_updateInterval + 10);
     DEBUG_PRINT("ledstripes1_updateInterval: ");
     DEBUG_PRINT(ledstripes1_updateInterval);
     DEBUG_PRINT("\n");
-  } else if(data.equalsIgnoreCase("s1status")) {
-    stripeGetState(ledstripes1_name, ledstripes_obj[0]);
   }
+}
+
+String split(String data, char separator, int index) {
+  int found = 0;
+  int strIndex[] = { 0, -1 };
+  int maxIndex = data.length() - 1;
+  for(int i = 0; i <= maxIndex && found <= index; i++) {
+    if(data.charAt(i) == separator || i == maxIndex) {
+      found++;
+      strIndex[0] = strIndex[1] + 1;
+      strIndex[1] = (i == maxIndex) ? i + 1 : i;
+    }
+  }
+  return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
+
+int sanitizeValue(String data, int, default = 0, int min = 0, int max = 255) {
+  int tmp;
+  if(data.length() > 0) {
+    tmp = data.toInt();
+    tmp = min(max(tmp,min),max);
+  } else {
+    tmp = default;
+  }
+  return tmp;
 }
 
 // Set all LEDs of the stripe to the same color
