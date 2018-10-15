@@ -609,7 +609,7 @@ void loop() {
 
 void processSerialInput(String data) {
   String v1, v2, v3, v4;
-  int i1, i2;
+  uint32_t i1, i2;
   data.toLowerCase();
   if(data.startsWith("status")) {
     v1 = split(data,' ',1);
@@ -725,12 +725,6 @@ void processSerialInput(String data) {
       i1 = WHITE_LED;
     } else if(v2.equalsIgnoreCase("off")) {
       i1 = BLACK;
-    } else if(v2.equalsIgnoreCase("red") || v2.equalsIgnoreCase("r")) {
-      i1 = RED;
-    } else if(v2.equalsIgnoreCase("green") || v2.equalsIgnoreCase("g")) {
-      i1 = GREEN;
-    } else if(v2.equalsIgnoreCase("blue") || v2.equalsIgnoreCase("b")) {
-      i1 = BLUE;
     } else if(v2.equalsIgnoreCase("effect") || v2.equalsIgnoreCase("e")) {
       v2 = "e";
       if(v3.equalsIgnoreCase("rainbow") || v3.equalsIgnoreCase("rb") || v3.equalsIgnoreCase("1")) {
@@ -739,12 +733,12 @@ void processSerialInput(String data) {
         i1 = 2;
       } else if(v3.equalsIgnoreCase("knightrider") || v3.equalsIgnoreCase("kr") || v3.equalsIgnoreCase("3")) {
         i1 = 3;
+        i2 = getColorFromString(v4);
       } else {
         i1 = 0;
       }
     } else {
-      // any possible color
-      i1 = sanitizeValue(v2, 0, 0, 4294967295);
+      i1 = getColorFromString(v2);
     }
     if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2")) {
       if(v1.equalsIgnoreCase("1") {
@@ -792,8 +786,8 @@ String split(String data, char separator, int index) {
   return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
-int sanitizeValue(String data, int default = 0, int min = 0, int max = 255) {
-  int tmp;
+uint32_t sanitizeValue(String data, uint32_t default, uint32_t min, uint32_t max) {
+  uint32_t tmp;
   if(data.length() > 0) {
     tmp = data.toInt();
     tmp = min(max(tmp,min),max);
@@ -802,6 +796,15 @@ int sanitizeValue(String data, int default = 0, int min = 0, int max = 255) {
   }
   return tmp;
 }
+
+uint32_t getColorFromString(String c) {
+  if(c.equalsIgnoreCase("black") || c.equalsIgnoreCase("bl")) return BLACK;
+  if(c.equalsIgnoreCase("blue")  || c.equalsIgnoreCase("b"))  return BLUE;
+  if(c.equalsIgnoreCase("green") || c.equalsIgnoreCase("g"))  return GREEN;
+  if(c.equalsIgnoreCase("red")   || c.equalsIgnoreCase("r"))  return RED;
+  if(c.equalsIgnoreCase("white") || c.equalsIgnoreCase("w"))  return WHITE_LED;
+  return sanitizeValue(c, 0, 0, 4294967295);
+} 
 
 // Set all LEDs of the stripe to the same color
 void stripeSetColor(String name, Adafruit_NeoPixel &stripe, uint32_t c) {
