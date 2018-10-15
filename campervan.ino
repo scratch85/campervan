@@ -70,47 +70,32 @@ int led2Val2 = led2Val;
 int led3Val = 0;
 int led3Val2 = led3Val;
 
-// LED Stripes 1, 2 (Driver, Co-Driver)
-#define LEDSTRIPE1_PIN 4
-#define LEDSTRIPE2_PIN 3
+// Number of ledstrips
+#define LEDSTRIPS 2
 
-// How many NeoPixels do the sripe have?
-#define LEDSTRIPE1_PIXELS 60
-#define LEDSTRIPE2_PIXELS 60
+// LED Strips 1, 2 (Driver, Co-Driver)
+#define LEDSTRIP1_PIN 4
+#define LEDSTRIP2_PIN 3
+
+// How many NeoPixels do the srip have?
+#define LEDSTRIP1_PIXELS 60
+#define LEDSTRIP2_PIXELS 60
 
 // Maximum brightness
-#define LEDSTRIPE_BRIGHTNESS 32
+#define LEDSTRIP_BRIGHTNESS 32
 
-// Parameter 1 = number of pixels in stripe
-// Parameter 2 = Arduino pin number (most are valid)
-// Parameter 3 = pixel type flags, add together as needed:
-//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
-//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
-//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
-//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-//   NEO_GRBW    Pixels are wired for GRBW bitstream (f.e. SK6812)
+// The struct
+struct strip {
+  String name;
+	unsigned int effect = 0;
+	unsigned long lastUpdate = 0;
+  unsigned long updateInterval = 50;
+  unsigned int j = 0;
+  unsigned int m = 0;
+  Adafruit_NeoPixel obj;
+};
 
-#define LEDSTRIPES 2
-Adafruit_NeoPixel ledstripes_obj[LEDSTRIPES];
-
-String ledstripes1_name = "Stripe1 (Driver)";
-unsigned int ledstripes1_effect = 0;
-unsigned long ledstripes1_lastUpdate = 0;
-unsigned long ledstripes1_updateInterval = 50;
-    
-String ledstripes2_name = "Stripe2 (Co-Driver)";
-unsigned long ledstripes2_effect = 0;
-unsigned long ledstripes2_lastUpdate = 0;
-unsigned long ledstripes2_updateInterval = 50;
-
-// IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
-// pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
-// and minimize distance between Arduino and first pixel. Avoid connecting
-// on a live circuit...if you must, connect GND first.
-
-// NOTE: RGBW LEDs draw up to 80mA with all colors + white at full brightness!
-// That means that a 60-pixel strip can draw up to 60x 80 = 4800mA, so you
-// should use a 5A power supply; for a 144-pixel strip its max 11520mA = 12A!
+strip strips[LEDSTRIPS];
 
 // Temperatur TMP36
 #define TMP36_PIN A0
@@ -204,18 +189,23 @@ void setup() {
   pinMode(LED3_PIN, OUTPUT);
   digitalWrite(LED3_PIN, LOW);
 
-  // Initialize LED Stripes
-  ledstripes_obj[0] = Adafruit_NeoPixel(LEDSTRIPE1_PIXELS, LEDSTRIPE1_PIN, NEO_GRBW + NEO_KHZ800);
-  ledstripes_obj[1] = Adafruit_NeoPixel(LEDSTRIPE2_PIXELS, LEDSTRIPE2_PIN, NEO_GRBW + NEO_KHZ800);
-  DEBUG_PRINT("Ledstripes:\n");
-  for(unsigned int i = 0; i < LEDSTRIPES; i++) {
+  // Initialize LED strips
+  strips[0].name = "Strip1 (Driver)";
+  strips[0].obj = Adafruit_NeoPixel(LEDSTRIP1_PIXELS, LEDSTRIP1_PIN, NEO_GRBW + NEO_KHZ800);
+  strips[1].name = "Strip2 (Co-Driver)";
+  strips[1].obj = Adafruit_NeoPixel(LEDSTRIP2_PIXELS, LEDSTRIP2_PIN, NEO_GRBW + NEO_KHZ800);
+  DEBUG_PRINT("Ledstrips:\n");
+  for(unsigned int i = 0; i < LEDSTRIPS; i++) {
     DEBUG_PRINT(i);
     DEBUG_PRINT(" on Pin: ");
-    DEBUG_PRINT(ledstripes_obj[i].getPin());
+    DEBUG_PRINT(strips[i].obj.getPin());
     DEBUG_PRINT("\n");
-    ledstripes_obj[i].begin();
-    ledstripes_obj[i].setBrightness(LEDSTRIPE_BRIGHTNESS);
-    ledstripes_obj[i].show(); // Initialize all pixels to 'off'
+	  strips[i].effect = 0;
+	  strips[i].lastUpdate = 0;
+    strips[i].updateInterval = 50;
+    strips[i].obj.begin();
+    strips[i].obj.setBrightness(LEDSTRIP_BRIGHTNESS);
+    strips[i].obj.show(); // Initialize all pixels to 'off'
   }
 }
 
@@ -396,20 +386,20 @@ void loop() {
     switch(btnDS2.event()) {
       case (tap):
         DEBUG_PRINT("btnDS2: tap event detected\n");
-        if(ledstripes1_effect > 0 || !stripeGetState(ledstripes1_name, ledstripes_obj[0])) {
-          stripeSetColor(ledstripes1_name, ledstripes_obj[0], WHITE_LED);
-          ledstripes1_effect = 0;
+        if(strips[0].effect > 0 || !stripGetState(&strips[0])) {
+          stripSetColor(&strips[0], WHITE_LED);
+          strips[0].effect = 0;
         } else {
-          stripeSetColor(ledstripes1_name, ledstripes_obj[0], BLACK);
-          ledstripes1_effect = 0;
+          stripSetColor(&strips[0], BLACK);
+          strips[0].effect = 0;
         }
         break;
       case (doubleTap):
         DEBUG_PRINT("btnDS2: doubleTap event detected\n");
-        ledstripes1_effect++;
-        if(ledstripes1_effect > 2) {
-          stripeSetColor(ledstripes1_name, ledstripes_obj[0], BLACK);
-          ledstripes1_effect = 0;
+        strips[0].effect++;
+        if(strips[0].effect > 2) {
+          stripSetColor(&strips[0], BLACK);
+          strips[0].effect = 0;
         }
         break;
       case (hold):
@@ -475,32 +465,20 @@ void loop() {
     switch(btnCS2.event()) {
       case (tap):
         DEBUG_PRINT("btnCS2: tap event detected\n");
-        /*if(ledstripes2_effect > 0 || !stripeGetState(ledstripes2_name, ledstripes_obj[1])) {
-          stripeSetColor(ledstripes2_name, ledstripes_obj[1], WHITE_LED, 50);
-          ledstripes2_effect = 0;
+        if(strips[0].effect > 0 || !stripGetState(&strips[0])) {
+          stripSetColor(&strips[0], WHITE_LED);
+          strips[0].effect = 0;
         } else {
-          stripeSetColor(ledstripes2_name, ledstripes_obj[1], BLACK, 50);
-          ledstripes2_effect = 0;
-        }*/
-        if(ledstripes1_effect > 0 || !stripeGetState(ledstripes1_name, ledstripes_obj[0])) {
-          stripeSetColor(ledstripes1_name, ledstripes_obj[0], WHITE_LED);
-          ledstripes1_effect = 0;
-        } else {
-          stripeSetColor(ledstripes1_name, ledstripes_obj[0], BLACK);
-          ledstripes1_effect = 0;
+          stripSetColor(&strips[0], BLACK);
+          strips[0].effect = 0;
         }
         break;
       case (doubleTap):
         DEBUG_PRINT("btnCS2: doubleTap event detected\n");
-        /*ledstripes2_effect++;
-        if(ledstripes2_effect > 2) {
-          stripeSetColor(ledstripes2_name, ledstripes_obj[1], BLACK);
-          ledstripes2_effect = 0;
-        }*/
-        ledstripes1_effect++;
-        if(ledstripes1_effect > 2) {
-          stripeSetColor(ledstripes1_name, ledstripes_obj[0], BLACK);
-          ledstripes1_effect = 0;
+        strips[0].effect++;
+        if(strips[0].effect > 2) {
+          stripSetColor(&strips[0], BLACK);
+          strips[0].effect = 0;
         }
         break;
       case (hold):
@@ -551,59 +529,27 @@ void loop() {
   }
   led3Val2 = led3Val;
 
-  // Handle LED Stripes
-  if(millis() - ledstripes1_lastUpdate >= ledstripes1_updateInterval) {
-    switch(ledstripes1_effect) {
-      case 0:
-        // do nothing
-        break;
-      case 1:
-        stripeRainbow(ledstripes1_name, ledstripes_obj[0]);
-        break;
-      case 2:
-        stripeRainbowCycle(ledstripes1_name, ledstripes_obj[0]);
-        break;
-      case 3:
-        stripeKnightRider(ledstripes1_name, ledstripes_obj[0], RED);
-        break;
-    }
-    ledstripes1_lastUpdate = millis();
-  }
-  /*
-  if(millis() - ledstripes2_lastUpdate >= ledstripes2_updateInterval) {
-    switch(ledstripes2_effect) {
-      case 0:
-        // do nothing
-        break;
-      case 1:
-        stripeRainbow(ledstripes2_name, ledstripes_obj[1]);
-        break;
-      case 2:
-        stripeRainbowCycle(ledstripes2_name, ledstripes_obj[1]);
-        break;
-    }
-    ledstripes2_lastUpdate = millis();
-  }
-  */
-  /*
-  for(unsigned int i = 0; i < LEDSTRIPES; i++) {
+  // Handle LED strips
+  for(unsigned int i = 0; i < LEDSTRIPS; i++) {
     // Check if an update is needed
-    if(millis() - ledstripes_lastUpdate[i] >= ledstripes_updateInterval[i]) {
-      switch(ledstripes_effect[i]) {
+    if(millis() - strips[i].lastUpdate >= strips[i].updateInterval) {
+      switch(strips[i].effect) {
         case 0:
           // do nothing
           break;
         case 1:
-          stripeRainbow(ledstripes_name[i], ledstripes_obj[i]);
+          stripRainbow(&strips[i]);
           break;
         case 2:
-          stripeRainbowCycle(ledstripes_name[i], ledstripes_obj[i]);
+          stripRainbowCycle(&strips[i]);
+          break;
+        case 3:
+          stripKnightRider(&strips[i], RED);
           break;
       }
-      ledstripes_lastUpdate[i] = millis();
+      strips[i].lastUpdate = millis();
     }
   }
-  */
   delay(10);
 }
 
@@ -676,18 +622,18 @@ void processSerialInput(String data) {
         DEBUG_PRINT(v1);
         DEBUG_PRINT(": ");
         if(v1.equalsIgnoreCase("1")) {
-          DEBUG_PRINT(stripeGetState(ledstripes1_name, ledstripes_obj[0]));
+          DEBUG_PRINT(stripGetState(&strips[0]));
         } else if(v1.equalsIgnoreCase("2")) {
-          DEBUG_PRINT(stripeGetState(ledstripes2_name, ledstripes_obj[1]));
+          DEBUG_PRINT(stripGetState(&strips[1]));
         } else {
           DEBUG_PRINT(0);
         }
       } else {
         DEBUG_PRINT("strip1: ");
-        DEBUG_PRINT(stripeGetState(ledstripes1_name, ledstripes_obj[0]));
+        DEBUG_PRINT(stripGetState(&strips[0]));
         DEBUG_PRINT("\n");
         DEBUG_PRINT("strip2: ");
-        DEBUG_PRINT(stripeGetState(ledstripes2_name, ledstripes_obj[1]));
+        DEBUG_PRINT(stripGetState(&strips[1]));
       }
       DEBUG_PRINT("\n");
     } else if(v1.equals("tmp")) {
@@ -710,10 +656,10 @@ void processSerialInput(String data) {
       DEBUG_PRINT(led3Val);
       DEBUG_PRINT("\n");
       DEBUG_PRINT("strip1: ");
-      DEBUG_PRINT(stripeGetState(ledstripes1_name, ledstripes_obj[0]));
+      DEBUG_PRINT(stripGetState(&strips[0]));
       DEBUG_PRINT("\n");
       DEBUG_PRINT("strip2: ");
-      DEBUG_PRINT(stripeGetState(ledstripes2_name, ledstripes_obj[1]));
+      DEBUG_PRINT(stripGetState(&strips[1]));
       DEBUG_PRINT("\n");
       DEBUG_PRINT("temperature: ");
       DEBUG_PRINT(String(tmp36.getTempC()));
@@ -773,30 +719,30 @@ void processSerialInput(String data) {
     if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2")) {
       if(v1.equalsIgnoreCase("1")) {
         if(v2.equalsIgnoreCase("e")) {
-          ledstripes1_effect = i1;
+          strips[0].effect = i1;
         } else {
-          stripeSetColor(ledstripes1_name, ledstripes_obj[0], i1);
-          ledstripes1_effect = 0;
+          stripSetColor(&strips[0], i1);
+          strips[0].effect = 0;
         }
       } else if(v1.equalsIgnoreCase("2")) {
         if(v2.equalsIgnoreCase("e")) {
-          ledstripes2_effect = i1;
+          strips[1].effect = i1;
         } else {
-          stripeSetColor(ledstripes2_name, ledstripes_obj[1], i1);
-          ledstripes2_effect = 0;
+          stripSetColor(&strips[1], i1);
+          strips[1].effect = 0;
         }
       } else {
         // nothing
       }
     } else {
       if(v2.equalsIgnoreCase("e")) {
-        ledstripes1_effect = i1;
-        ledstripes2_effect = i1;
+        strips[0].effect = i1;
+        strips[1].effect = i1;
       } else {
-        stripeSetColor(ledstripes1_name, ledstripes_obj[0], i1);
-        ledstripes1_effect = 0;
-        stripeSetColor(ledstripes2_name, ledstripes_obj[1], i1);
-        ledstripes2_effect = 0;
+        stripSetColor(&strips[0], i1);
+        strips[0].effect = 0;
+        stripSetColor(&strips[1], i1);
+        strips[1].effect = 0;
       }
     }
   }
@@ -836,131 +782,123 @@ uint32_t getColorFromString(String c) {
   return sanitizeValue(c, 0, 0, 4294967295);
 } 
 
-// Set all LEDs of the stripe to the same color
-void stripeSetColor(String name, Adafruit_NeoPixel &stripe, uint32_t c) {
-  DEBUG_PRINT("stripeSetColor (");
-  DEBUG_PRINT(name);
+// Set all LEDs of the strip to the same color
+void stripSetColor(strip *s, uint32_t c) {
+  DEBUG_PRINT("stripSetColor (");
+  DEBUG_PRINT(s->name);
   DEBUG_PRINT(", ");
   DEBUG_PRINT(c);
   DEBUG_PRINT(")");
-  for(uint16_t i = 0; i < stripe.numPixels(); i++) {
+  for(uint16_t i = 0; i < s->obj.numPixels(); i++) {
     DEBUG_PRINT(i);
     DEBUG_PRINT(", ");
-    stripe.setPixelColor(i, c);
+    s->obj.setPixelColor(i, c);
   }
-  stripe.show();
-  DEBUG_PRINT("stripeSetColor: done\n");
+  s->obj.show();
+  DEBUG_PRINT("stripSetColor: done\n");
 }
 
-void stripeRainbow(String name, Adafruit_NeoPixel &stripe) {
-  static uint16_t j = 0;
-
-  //DEBUG_PRINT("stripeRainbow(");
-  //DEBUG_PRINT(name);
+void stripRainbow(strip *s) {
+  //DEBUG_PRINT("stripRainbow(");
+  //DEBUG_PRINT(s->name);
   //DEBUG_PRINT(")\n");
-  for(uint16_t i = 0; i < stripe.numPixels(); i++) {
-    stripe.setPixelColor(i, Wheel(stripe,(i + j) & 255));
+  for(uint16_t i = 0; i < s->obj.numPixels(); i++) {
+    s->obj.setPixelColor(i, Wheel(s->obj,(i + s->j) & 255));
   }
-  stripe.show();
-  j++;
-  if(j >= 256) {
-    j = 0;
+  s->obj.show();
+  s->j++;
+  if(s->j >= 256) {
+    s->j = 0;
   }
-  //DEBUG_PRINT("stripeRainbow: done\n");
+  //DEBUG_PRINT("stripRainbow: done\n");
 }
 
 // Slightly different, this makes the rainbow equally distributed throughout
-void stripeRainbowCycle(String name, Adafruit_NeoPixel &stripe) {
-  static uint16_t j = 0;
-
-  //DEBUG_PRINT("stripeRainbowCycle(");
-  //DEBUG_PRINT(name);
+void stripRainbowCycle(strip *s) {
+  //DEBUG_PRINT("stripRainbowCycle(");
+  //DEBUG_PRINT(s->name);
   //DEBUG_PRINT(")\n");
-  for(uint16_t i = 0; i < stripe.numPixels(); i++) {
-    stripe.setPixelColor(i, Wheel(stripe,((i * 256 / stripe.numPixels()) + j) & 255));
+  for(uint16_t i = 0; i < s->obj.numPixels(); i++) {
+    s->obj.setPixelColor(i, Wheel(s->obj,((i * 256 / s->obj.numPixels()) + s->j) & 255));
   }
-  stripe.show();
-  j++;
-  //if(j >= 256 * 5) {
-  if(j >= 256) {
-    j = 0;
+  s->obj.show();
+  s->j++;
+  if(s->j >= 256) {
+    s->j = 0;
   }
-  //DEBUG_PRINT("stripeRainbowCycle: done\n");
+  //DEBUG_PRINT("stripRainbowCycle: done\n");
 }
 
-void stripeKnightRider(String name, Adafruit_NeoPixel &stripe, uint32_t c) {
-  static uint16_t j = 0;
-  static uint16_t m = 0;
+void stripKnightRider(strip *s, uint32_t c) {
   uint16_t x = 2;
-  
 
-  //DEBUG_PRINT("stripeKnightRider(");
-  //DEBUG_PRINT(name);
+  //DEBUG_PRINT("stripKnightRider(");
+  //DEBUG_PRINT(s->name);
   //DEBUG_PRINT(", ");
   //DEBUG_PRINT(c);
   //DEBUG_PRINT(")\n");
-  for(uint16_t i = 0; i < stripe.numPixels(); i++) {
-    if(i >= j - x && i <= j + x) {
-      stripe.setPixelColor(i, c);
+  for(uint16_t i = 0; i < s->obj.numPixels(); i++) {
+    if(i >= s->j - x && i <= s->j + x) {
+      s->obj.setPixelColor(i, c);
     } else {
-      stripe.setPixelColor(i, BLACK);
+      s->obj.setPixelColor(i, BLACK);
     }
   }
-  stripe.show();
-  if(m == 0) {
-    j++;
+  s->obj.show();
+  if(s->m == 0) {
+    s->j++;
   } else {
-    j--;
+    s->j--;
   }
-  if(j <= 0) {
-    m = 0;
+  if(s->j <= 0) {
+    s->m = 0;
   }
-  if(j >= stripe.numPixels()) {
-    m = 1;
+  if(s->j >= s->obj.numPixels()) {
+    s->m = 1;
   }
-  //DEBUG_PRINT("stripeKnightRider: done\n");
+  //DEBUG_PRINT("stripKnightRider: done\n");
 }
 
 // Input a value 0 to 255 to get a color value.
 // The colours are a transition r - g - b - back to r.
-uint32_t Wheel(Adafruit_NeoPixel &stripe, byte WheelPos) {
+uint32_t Wheel(Adafruit_NeoPixel &strip, byte WheelPos) {
   WheelPos = 255 - WheelPos;
   if(WheelPos < 85) {
-    return stripe.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
   } else if(WheelPos < 170) {
     WheelPos -= 85;
-    return stripe.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
   } else {
     WheelPos -= 170;
-    return stripe.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+    return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
   }
 }
 
-// Returns true if at least one of the LEDs of the stipe is glowing
-bool stripeGetState(String name, Adafruit_NeoPixel &stripe) {
-  DEBUG_PRINT("stripeGetState(");
-  DEBUG_PRINT(name);
+// Returns true if at least one of the LEDs of the stip is glowing
+bool stripGetState(strip *s) {
+  DEBUG_PRINT("stripGetState(");
+  DEBUG_PRINT(s->name);
   DEBUG_PRINT(")\n");
   bool state = false;
   uint16_t i = 0;
-  while(!state && i < stripe.numPixels()) {
-    if(stripe.getPixelColor(i) == 0) {
+  while(!state && i < s->obj.numPixels()) {
+    if(s->obj.getPixelColor(i) == 0) {
       i++;
     } else {
-      DEBUG_PRINT("stripeGetState (");
+      DEBUG_PRINT("stripGetState (");
       DEBUG_PRINT(i);
       DEBUG_PRINT("): ");
-      DEBUG_PRINT(stripe.getPixelColor(i));
+      DEBUG_PRINT(s->obj.getPixelColor(i));
       DEBUG_PRINT("\n");
       state = true;
     }
   }
-  DEBUG_PRINT("stripeGetColor: state = ");
+  DEBUG_PRINT("stripGetColor: state = ");
   if(state) {
     DEBUG_PRINT("true\n");
   } else {
     DEBUG_PRINT("false\n");
   }
-  DEBUG_PRINT("stripeGetColor: done\n");
+  DEBUG_PRINT("stripGetColor: done\n");
   return state;
 }
