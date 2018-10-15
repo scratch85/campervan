@@ -786,13 +786,13 @@ String split(String data, char separator, int index) {
   return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
-uint32_t sanitizeValue(String data, uint32_t default, uint32_t min, uint32_t max) {
+uint32_t sanitizeValue(String data, uint32_t def, uint32_t min, uint32_t max) {
   uint32_t tmp;
   if(data.length() > 0) {
     tmp = data.toInt();
     tmp = min(max(tmp,min),max);
   } else {
-    tmp = default;
+    tmp = def;
   }
   return tmp;
 }
