@@ -619,11 +619,11 @@ void processSerialInput(String data) {
         DEBUG_PRINT("led");
         DEBUG_PRINT(v1);
         DEBUG_PRINT(": ");
-        if(v1.equalsIgnoreCase("1") {
+        if(v1.equalsIgnoreCase("1")) {
           DEBUG_PRINT(led1Val);
-        } else if(v1.equalsIgnoreCase("2") {
+        } else if(v1.equalsIgnoreCase("2")) {
           DEBUG_PRINT(led2Val);
-        } else if(v1.equalsIgnoreCase("3") {
+        } else if(v1.equalsIgnoreCase("3")) {
           DEBUG_PRINT(led3Val);
         } else {
           DEBUG_PRINT(0);
@@ -645,9 +645,9 @@ void processSerialInput(String data) {
         DEBUG_PRINT("strip");
         DEBUG_PRINT(v1);
         DEBUG_PRINT(": ");
-        if(v1.equalsIgnoreCase("1") {
+        if(v1.equalsIgnoreCase("1")) {
           DEBUG_PRINT(stripeGetState(ledstripes1_name, ledstripes_obj[0]));
-        } else if(v1.equalsIgnoreCase("2") {
+        } else if(v1.equalsIgnoreCase("2")) {
           DEBUG_PRINT(stripeGetState(ledstripes2_name, ledstripes_obj[1]));
         } else {
           DEBUG_PRINT(0);
@@ -702,11 +702,11 @@ void processSerialInput(String data) {
       i1 = sanitizeValue(v2, 255, 0, 255);
     }
     if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2") || v1.equalsIgnoreCase("3")) {
-      if(v1.equalsIgnoreCase("1") {
+      if(v1.equalsIgnoreCase("1")) {
         led1Val = i1;
-      } else if(v1.equalsIgnoreCase("2") {
+      } else if(v1.equalsIgnoreCase("2")) {
         led2Val = i1;
-      } else if(v1.equalsIgnoreCase("3") {
+      } else if(v1.equalsIgnoreCase("3")) {
         led3Val = i1;
       } else {
         // nothing
@@ -741,14 +741,14 @@ void processSerialInput(String data) {
       i1 = getColorFromString(v2);
     }
     if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2")) {
-      if(v1.equalsIgnoreCase("1") {
+      if(v1.equalsIgnoreCase("1")) {
         if(v2.equalsIgnoreCase("e")) {
           ledstripes1_effect = i1;
         } else {
           stripeSetColor(ledstripes1_name, ledstripes_obj[0], i1);
           ledstripes1_effect = 0;
         }
-      } else if(v1.equalsIgnoreCase("2") {
+      } else if(v1.equalsIgnoreCase("2")) {
         if(v2.equalsIgnoreCase("e")) {
           ledstripes2_effect = i1;
         } else {
@@ -786,11 +786,11 @@ String split(String data, char separator, int index) {
   return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
-uint32_t sanitizeValue(String data, uint32_t def, uint32_t min, uint32_t max) {
+uint32_t sanitizeValue(String data, uint32_t def, uint32_t vmin, uint32_t vmax) {
   uint32_t tmp;
   if(data.length() > 0) {
     tmp = data.toInt();
-    tmp = min(max(tmp,min),max);
+    tmp = min(max(tmp, vmin), vmax);
   } else {
     tmp = def;
   }
@@ -934,4 +934,3 @@ bool stripeGetState(String name, Adafruit_NeoPixel &stripe) {
   DEBUG_PRINT("stripeGetColor: done\n");
   return state;
 }
-
