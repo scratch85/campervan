@@ -17,7 +17,7 @@ In early 2018 I started to convert a Ford Transit Custom (SWB) into a campervan.
 * get second strip to work
 * implement way to synchronize strip effects
 * process inputs with parameters from serial / ble
-* helper function for inputs
+* ~~helper function for inputs~~
 * store values in eeprom
 * get more effects ready
 * rewrite using fastled instead of neopixel lib
