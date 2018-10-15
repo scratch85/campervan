@@ -554,68 +554,233 @@ void loop() {
 }
 
 void processSerialInput(String data) {
-  if(data.equalsIgnoreCase("status")) {
-    DEBUG_PRINT("Status\n");
-    DEBUG_PRINT("---------------\n");
-    DEBUG_PRINT("Temp.: ");
-    DEBUG_PRINT(String(tmp36.getTempC()));
-    DEBUG_PRINT("°C\n");
-    DEBUG_PRINT("---------------\n");
-  } else if(data.equalsIgnoreCase("l1")) {
-    led1Val = 128;
-  } else if(data.equalsIgnoreCase("l1-")) {
-    led1Val = max(0,led1Val - (254 * 0.1));
-  } else if(data.equalsIgnoreCase("l2")) {
-    led2Val = 128;
-  } else if(data.equalsIgnoreCase("l2-")) {
-    led2Val = max(0,led2Val - (254 * 0.1));
-  } else if(data.equalsIgnoreCase("l3")) {
-    led3Val = 128;
-  } else if(data.equalsIgnoreCase("l3-")) {
-    led3Val = max(0,led3Val - (254 * 0.1));
-  } else if(data.equalsIgnoreCase("on")) {
-    led1Val = 128;
-    led2Val = 128;
-    led3Val = 128;
-  } else if(data.equalsIgnoreCase("off")) {
-    led1Val = 0;
-    led2Val = 0;
-    led3Val = 0;
-  } else if(data.equalsIgnoreCase("s1w")) {
-    stripSetColor(&strips[0], WHITE_LED);
-    strips[0].effect = 0;
-  } else if(data.equalsIgnoreCase("s1r")) {
-    stripSetColor(&strips[0], RED);
-    strips[0].effect = 0;
-  } else if(data.equalsIgnoreCase("s1g")) {
-    stripSetColor(&strips[0], GREEN);
-    strips[0].effect = 0;
-  } else if(data.equalsIgnoreCase("s1b")) {
-    stripSetColor(&strips[0], BLUE);
-    strips[0].effect = 0;
-  } else if(data.equalsIgnoreCase("s1off")) {
-    stripSetColor(&strips[0], BLACK);
-    strips[0].effect = 0;
-  } else if(data.equalsIgnoreCase("s1rb")) {
-    strips[0].effect = 1;
-  } else if(data.equalsIgnoreCase("s1rbc")) {
-    strips[0].effect = 2;
-  } else if(data.equalsIgnoreCase("s1kr")) {
-    strips[0].effect = 3;
-  } else if(data.equalsIgnoreCase("s1+")) {
-    strips[0].updateInterval = max(10,strips[0].updateInterval - 10);
-    DEBUG_PRINT("strips[0].updateInterval: ");
-    DEBUG_PRINT(strips[0].updateInterval);
+  String v1, v2, v3, v4;
+  uint32_t i1, i2;
+  data.toLowerCase();
+  if(data.equalsIgnoreCase("help")) {
+    DEBUG_PRINT("usage: status [led <1-3>|strip <1-2>|tmp [C|F]]\n");
+    DEBUG_PRINT("   or: led <1-3|all> [on|off|0-255|0-100%]\n");
+    DEBUG_PRINT("   or: strip <1-2|all> <on|off|color|effect [id|name] [...]>\n");
     DEBUG_PRINT("\n");
-  } else if(data.equalsIgnoreCase("s1-")) {
-    strips[0].updateInterval = min(1000,strips[0].updateInterval + 10);
-    DEBUG_PRINT("strips[0].updateInterval: ");
-    DEBUG_PRINT(strips[0].updateInterval);
+    DEBUG_PRINT("Common commands:\n");
+    DEBUG_PRINT("  status - get the status of leds, strips and sensors\n");
+    DEBUG_PRINT("  led    - control led lights\n");
+    DEBUG_PRINT("  strip  - control led strips\n");
     DEBUG_PRINT("\n");
-  } else if(data.equalsIgnoreCase("s1status")) {
-    stripGetState(&strips[0]);
+    DEBUG_PRINT("Generic options:\n");
+    DEBUG_PRINT("  <1-3>  - select the device id you want to control\n");
+    DEBUG_PRINT("  all    - select to control all led or strip devices\n");
+    DEBUG_PRINT("\n");
+    DEBUG_PRINT("Specific options:\n");
+    DEBUG_PRINT("  on     - switch device on\n");
+    DEBUG_PRINT("  off    - switch device off\n");
+    DEBUG_PRINT("  0-255  - select brightness as byte\n");
+    DEBUG_PRINT("  0-100% - switch brightness in percent\n");
+    DEBUG_PRINT("  color  - select a specific color (see \"Colors\")\n");
+    DEBUG_PRINT("  effect - select a specific effect by id or name (see \"Effects\")\n");
+    DEBUG_PRINT("\n");
+    DEBUG_PRINT("Colors:\n");
+    DEBUG_PRINT("  black, blue, green, red, white\n");
+    DEBUG_PRINT("\n");
+    DEBUG_PRINT("Effects:\n");
+    DEBUG_PRINT("  1: rainbow (rb)       - rainbow colors slowly changing\n");
+    DEBUG_PRINT("  2: rainbowcycle (rbc) - all rainbow colors cycling at once\n");
+    DEBUG_PRINT("  3: knightrider (kr)   - moving red light\n");
+    DEBUG_PRINT("\n");
+  } else if(data.startsWith("status")) {
+    v1 = split(data,' ',1);
+    if(v1.equals("led")) {
+      v1 = split(data,' ',2);
+      if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2") || v1.equalsIgnoreCase("3")) {
+        DEBUG_PRINT("led");
+        DEBUG_PRINT(v1);
+        DEBUG_PRINT(": ");
+        if(v1.equalsIgnoreCase("1")) {
+          DEBUG_PRINT(led1Val);
+        } else if(v1.equalsIgnoreCase("2")) {
+          DEBUG_PRINT(led2Val);
+        } else if(v1.equalsIgnoreCase("3")) {
+          DEBUG_PRINT(led3Val);
+        } else {
+          DEBUG_PRINT(0);
+        }
+      } else {
+        DEBUG_PRINT("led1: ");
+        DEBUG_PRINT(led1Val);
+        DEBUG_PRINT("\n");
+        DEBUG_PRINT("led2: ");
+        DEBUG_PRINT(led2Val);
+        DEBUG_PRINT("\n");
+        DEBUG_PRINT("led3: ");
+        DEBUG_PRINT(led3Val);
+      }
+      DEBUG_PRINT("\n");
+    } else if(v1.equals("strip")) {
+      v1 = split(data,' ',2);
+      if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2")) {
+        DEBUG_PRINT("strip");
+        DEBUG_PRINT(v1);
+        DEBUG_PRINT(": ");
+        if(v1.equalsIgnoreCase("1")) {
+          DEBUG_PRINT(stripGetState(&strips[0]));
+        } else if(v1.equalsIgnoreCase("2")) {
+          DEBUG_PRINT(stripGetState(&strips[1]));
+        } else {
+          DEBUG_PRINT(0);
+        }
+      } else {
+        DEBUG_PRINT("strip1: ");
+        DEBUG_PRINT(stripGetState(&strips[0]));
+        DEBUG_PRINT("\n");
+        DEBUG_PRINT("strip2: ");
+        DEBUG_PRINT(stripGetState(&strips[1]));
+      }
+      DEBUG_PRINT("\n");
+    } else if(v1.equals("tmp")) {
+      v1 = split(data,' ',2);
+      DEBUG_PRINT("temperature: ");
+      if(v1.equalsIgnoreCase("F")) {
+        DEBUG_PRINT(String(tmp36.getTempF()));
+      } else {
+        DEBUG_PRINT(String(tmp36.getTempC()));
+      }
+      DEBUG_PRINT("\n");
+    } else {
+      DEBUG_PRINT("led1: ");
+      DEBUG_PRINT(led1Val);
+      DEBUG_PRINT("\n");
+      DEBUG_PRINT("led2: ");
+      DEBUG_PRINT(led2Val);
+      DEBUG_PRINT("\n");
+      DEBUG_PRINT("led3: ");
+      DEBUG_PRINT(led3Val);
+      DEBUG_PRINT("\n");
+      DEBUG_PRINT("strip1: ");
+      DEBUG_PRINT(stripGetState(&strips[0]));
+      DEBUG_PRINT("\n");
+      DEBUG_PRINT("strip2: ");
+      DEBUG_PRINT(stripGetState(&strips[1]));
+      DEBUG_PRINT("\n");
+      DEBUG_PRINT("temperature: ");
+      DEBUG_PRINT(String(tmp36.getTempC()));
+      DEBUG_PRINT("\n");
+    }
+  } else if(data.startsWith("led")) {
+    v1 = split(data,' ',1);
+    v2 = split(data,' ',2);
+    if(v2.equalsIgnoreCase("on")) {
+      i1 = 255;
+    } else if(v2.equalsIgnoreCase("off")) {
+      i1 = 0;
+    } else if(v2.endsWith("%")) {
+      i1 = map(sanitizeValue(v2.remove(v2.length() - 1), 0, 0, 100), 0, 100, 0, 255);
+    } else {
+      i1 = sanitizeValue(v2, 255, 0, 255);
+    }
+    if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2") || v1.equalsIgnoreCase("3")) {
+      if(v1.equalsIgnoreCase("1")) {
+        led1Val = i1;
+      } else if(v1.equalsIgnoreCase("2")) {
+        led2Val = i1;
+      } else if(v1.equalsIgnoreCase("3")) {
+        led3Val = i1;
+      } else {
+        // nothing
+      }
+    } else {
+      led1Val = i1;
+      led2Val = i1;
+      led3Val = i1;
+    }
+  } else if(data.equals("strip")) {
+    v1 = split(data,' ',1);
+    v2 = split(data,' ',2);
+    v3 = split(data,' ',3);
+    v4 = split(data,' ',4);
+    if(v2.equalsIgnoreCase("on")) {
+      i1 = WHITE_LED;
+    } else if(v2.equalsIgnoreCase("off")) {
+      i1 = BLACK;
+    } else if(v2.equalsIgnoreCase("effect") || v2.equalsIgnoreCase("e")) {
+      v2 = "e";
+      if(v3.equalsIgnoreCase("rainbow") || v3.equalsIgnoreCase("rb") || v3.equalsIgnoreCase("1")) {
+        i1 = 1;
+      } else if(v3.equalsIgnoreCase("rainbowcycle") || v3.equalsIgnoreCase("rbc") || v3.equalsIgnoreCase("2")) {
+        i1 = 2;
+      } else if(v3.equalsIgnoreCase("knightrider") || v3.equalsIgnoreCase("kr") || v3.equalsIgnoreCase("3")) {
+        i1 = 3;
+        i2 = getColorFromString(v4);
+      } else {
+        i1 = 0;
+      }
+    } else {
+      i1 = getColorFromString(v2);
+    }
+    if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2")) {
+      if(v1.equalsIgnoreCase("1")) {
+        if(v2.equalsIgnoreCase("e")) {
+          strips[0].effect = i1;
+        } else {
+          stripSetColor(&strips[0], i1);
+          strips[0].effect = 0;
+        }
+      } else if(v1.equalsIgnoreCase("2")) {
+        if(v2.equalsIgnoreCase("e")) {
+          strips[1].effect = i1;
+        } else {
+          stripSetColor(&strips[1], i1);
+          strips[1].effect = 0;
+        }
+      } else {
+        // nothing
+      }
+    } else {
+      if(v2.equalsIgnoreCase("e")) {
+        strips[0].effect = i1;
+        strips[1].effect = i1;
+      } else {
+        stripSetColor(&strips[0], i1);
+        strips[0].effect = 0;
+        stripSetColor(&strips[1], i1);
+        strips[1].effect = 0;
+      }
+    }
   }
 }
+
+String split(String data, char separator, int index) {
+  int found = 0;
+  int strIndex[] = { 0, -1 };
+  int maxIndex = data.length() - 1;
+  for(int i = 0; i <= maxIndex && found <= index; i++) {
+    if(data.charAt(i) == separator || i == maxIndex) {
+      found++;
+      strIndex[0] = strIndex[1] + 1;
+      strIndex[1] = (i == maxIndex) ? i + 1 : i;
+    }
+  }
+  return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
+
+uint32_t sanitizeValue(String data, uint32_t def, uint32_t vmin, uint32_t vmax) {
+  uint32_t tmp;
+  if(data.length() > 0) {
+    tmp = data.toInt();
+    tmp = min(max(tmp, vmin), vmax);
+  } else {
+    tmp = def;
+  }
+  return tmp;
+}
+
+uint32_t getColorFromString(String c) {
+  if(c.equalsIgnoreCase("black") || c.equalsIgnoreCase("bl")) return BLACK;
+  if(c.equalsIgnoreCase("blue")  || c.equalsIgnoreCase("b"))  return BLUE;
+  if(c.equalsIgnoreCase("green") || c.equalsIgnoreCase("g"))  return GREEN;
+  if(c.equalsIgnoreCase("red")   || c.equalsIgnoreCase("r"))  return RED;
+  if(c.equalsIgnoreCase("white") || c.equalsIgnoreCase("w"))  return WHITE_LED;
+  return sanitizeValue(c, 0, 0, 4294967295);
+} 
 
 // Set all LEDs of the strip to the same color
 void stripSetColor(strip *s, uint32_t c) {
