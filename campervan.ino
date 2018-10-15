@@ -608,71 +608,173 @@ void loop() {
 }
 
 void processSerialInput(String data) {
-  String v1;
+  String v1, v2, v3, v4;
+  int i1, i2;
   data.toLowerCase();
   if(data.startsWith("status")) {
     v1 = split(data,' ',1);
-    if(v1.equals("s1")) {
-      DEBUG_PRINT("ledstrip1: ");
-      DEBUG_PRINT(stripeGetState(ledstripes1_name, ledstripes_obj[0]));
+    if(v1.equals("led")) {
+      v1 = split(data,' ',2);
+      if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2") || v1.equalsIgnoreCase("3")) {
+        DEBUG_PRINT("led");
+        DEBUG_PRINT(v1);
+        DEBUG_PRINT(": ");
+        if(v1.equalsIgnoreCase("1") {
+          DEBUG_PRINT(led1Val);
+        } else if(v1.equalsIgnoreCase("2") {
+          DEBUG_PRINT(led2Val);
+        } else if(v1.equalsIgnoreCase("3") {
+          DEBUG_PRINT(led3Val);
+        } else {
+          DEBUG_PRINT(0);
+        }
+      } else {
+        DEBUG_PRINT("led1: ");
+        DEBUG_PRINT(led1Val);
+        DEBUG_PRINT("\n");
+        DEBUG_PRINT("led2: ");
+        DEBUG_PRINT(led2Val);
+        DEBUG_PRINT("\n");
+        DEBUG_PRINT("led3: ");
+        DEBUG_PRINT(led3Val);
+      }
+      DEBUG_PRINT("\n");
+    } else if(v1.equals("strip")) {
+      v1 = split(data,' ',2);
+      if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2")) {
+        DEBUG_PRINT("strip");
+        DEBUG_PRINT(v1);
+        DEBUG_PRINT(": ");
+        if(v1.equalsIgnoreCase("1") {
+          DEBUG_PRINT(stripeGetState(ledstripes1_name, ledstripes_obj[0]));
+        } else if(v1.equalsIgnoreCase("2") {
+          DEBUG_PRINT(stripeGetState(ledstripes2_name, ledstripes_obj[1]));
+        } else {
+          DEBUG_PRINT(0);
+        }
+      } else {
+        DEBUG_PRINT("strip1: ");
+        DEBUG_PRINT(stripeGetState(ledstripes1_name, ledstripes_obj[0]));
+        DEBUG_PRINT("\n");
+        DEBUG_PRINT("strip2: ");
+        DEBUG_PRINT(stripeGetState(ledstripes2_name, ledstripes_obj[1]));
+      }
+      DEBUG_PRINT("\n");
+    } else if(v1.equals("tmp")) {
+      v1 = split(data,' ',2);
+      DEBUG_PRINT("temperature: ");
+      if(v1.equalsIgnoreCase("F")) {
+        DEBUG_PRINT(String(tmp36.getTempF()));
+      } else {
+        DEBUG_PRINT(String(tmp36.getTempC()));
+      }
       DEBUG_PRINT("\n");
     } else {
-      DEBUG_PRINT("Status\n");
-      DEBUG_PRINT("---------------\n");
-      DEBUG_PRINT("Temp.: ");
+      DEBUG_PRINT("led1: ");
+      DEBUG_PRINT(led1Val);
+      DEBUG_PRINT("\n");
+      DEBUG_PRINT("led2: ");
+      DEBUG_PRINT(led2Val);
+      DEBUG_PRINT("\n");
+      DEBUG_PRINT("led3: ");
+      DEBUG_PRINT(led3Val);
+      DEBUG_PRINT("\n");
+      DEBUG_PRINT("strip1: ");
+      DEBUG_PRINT(stripeGetState(ledstripes1_name, ledstripes_obj[0]));
+      DEBUG_PRINT("\n");
+      DEBUG_PRINT("strip2: ");
+      DEBUG_PRINT(stripeGetState(ledstripes2_name, ledstripes_obj[1]));
+      DEBUG_PRINT("\n");
+      DEBUG_PRINT("temperature: ");
       DEBUG_PRINT(String(tmp36.getTempC()));
-      DEBUG_PRINT("°C\n");
-      DEBUG_PRINT("---------------\n");
+      DEBUG_PRINT("\n");
     }
-  } else if(data.startsWith("l1")) {
+  } else if(data.startsWith("led")) {
     v1 = split(data,' ',1);
-    led1Val = sanitizeValue(v1, 128, 0, 255);
-  } else if(data.startsWith("l2")) {
+    v2 = split(data,' ',2);
+    if(v2.equalsIgnoreCase("on")) {
+      i1 = 255;
+    } else if(v2.equalsIgnoreCase("off")) {
+      i1 = 0;
+    } else if(v2.endsWith("%")) {
+      i1 = map(sanitizeValue(v2.remove(v2.length() - 1), 0, 0, 100), 0, 100, 0, 255);
+    } else {
+      i1 = sanitizeValue(v2, 255, 0, 255);
+    }
+    if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2") || v1.equalsIgnoreCase("3")) {
+      if(v1.equalsIgnoreCase("1") {
+        led1Val = i1;
+      } else if(v1.equalsIgnoreCase("2") {
+        led2Val = i1;
+      } else if(v1.equalsIgnoreCase("3") {
+        led3Val = i1;
+      } else {
+        // nothing
+      }
+    } else {
+      led1Val = i1;
+      led2Val = i1;
+      led3Val = i1;
+    }
+  } else if(data.equals("strip")) {
     v1 = split(data,' ',1);
-    led2Val = sanitizeValue(v1, 128, 0, 255);
-  } else if(data.startsWith("l3")) {
-    v1 = split(data,' ',1);
-    led3Val = sanitizeValue(v1, 128, 0, 255);
-  } else if(data.startsWith("on")) {
-    v1 = split(data,' ',1);
-    led1Val = sanitizeValue(v1, 128, 0, 255);
-    led2Val = led1Val;
-    led3Val = led1Val;
-  } else if(data.equals("off")) {
-    led1Val = 0;
-    led2Val = 0;
-    led3Val = 0;
-  } else if(data.equals("s1w")) {
-    stripeSetColor(ledstripes1_name, ledstripes_obj[0], WHITE_LED);
-    ledstripes1_effect = 0;
-  } else if(data.equals("s1r")) {
-    stripeSetColor(ledstripes1_name, ledstripes_obj[0], RED);
-    ledstripes1_effect = 0;
-  } else if(data.equals("s1g")) {
-    stripeSetColor(ledstripes1_name, ledstripes_obj[0], GREEN);
-    ledstripes1_effect = 0;
-  } else if(data.equals("s1b")) {
-    stripeSetColor(ledstripes1_name, ledstripes_obj[0], BLUE);
-    ledstripes1_effect = 0;
-  } else if(data.equals("s1off")) {
-    stripeSetColor(ledstripes1_name, ledstripes_obj[0], BLACK);
-    ledstripes1_effect = 0;
-  } else if(data.equals("s1rb")) {
-    ledstripes1_effect = 1;
-  } else if(data.equals("s1rbc")) {
-    ledstripes1_effect = 2;
-  } else if(data.equals("s1kr")) {
-    ledstripes1_effect = 3;
-  } else if(data.equals("s1+")) {
-    ledstripes1_updateInterval = max(10,ledstripes1_updateInterval - 10);
-    DEBUG_PRINT("ledstripes1_updateInterval: ");
-    DEBUG_PRINT(ledstripes1_updateInterval);
-    DEBUG_PRINT("\n");
-  } else if(data.equals("s1-")) {
-    ledstripes1_updateInterval = min(1000,ledstripes1_updateInterval + 10);
-    DEBUG_PRINT("ledstripes1_updateInterval: ");
-    DEBUG_PRINT(ledstripes1_updateInterval);
-    DEBUG_PRINT("\n");
+    v2 = split(data,' ',2);
+    v3 = split(data,' ',3);
+    v4 = split(data,' ',4);
+    if(v2.equalsIgnoreCase("on")) {
+      i1 = WHITE_LED;
+    } else if(v2.equalsIgnoreCase("off")) {
+      i1 = BLACK;
+    } else if(v2.equalsIgnoreCase("red") || v2.equalsIgnoreCase("r")) {
+      i1 = RED;
+    } else if(v2.equalsIgnoreCase("green") || v2.equalsIgnoreCase("g")) {
+      i1 = GREEN;
+    } else if(v2.equalsIgnoreCase("blue") || v2.equalsIgnoreCase("b")) {
+      i1 = BLUE;
+    } else if(v2.equalsIgnoreCase("effect") || v2.equalsIgnoreCase("e")) {
+      v2 = "e";
+      if(v3.equalsIgnoreCase("rainbow") || v3.equalsIgnoreCase("rb") || v3.equalsIgnoreCase("1")) {
+        i1 = 1;
+      } else if(v3.equalsIgnoreCase("rainbowcycle") || v3.equalsIgnoreCase("rbc") || v3.equalsIgnoreCase("2")) {
+        i1 = 2;
+      } else if(v3.equalsIgnoreCase("knightrider") || v3.equalsIgnoreCase("kr") || v3.equalsIgnoreCase("3")) {
+        i1 = 3;
+      } else {
+        i1 = 0;
+      }
+    } else {
+      // any possible color
+      i1 = sanitizeValue(v2, 0, 0, 4294967295);
+    }
+    if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2")) {
+      if(v1.equalsIgnoreCase("1") {
+        if(v2.equalsIgnoreCase("e")) {
+          ledstripes1_effect = i1;
+        } else {
+          stripeSetColor(ledstripes1_name, ledstripes_obj[0], i1);
+          ledstripes1_effect = 0;
+        }
+      } else if(v1.equalsIgnoreCase("2") {
+        if(v2.equalsIgnoreCase("e")) {
+          ledstripes2_effect = i1;
+        } else {
+          stripeSetColor(ledstripes2_name, ledstripes_obj[1], i1);
+          ledstripes2_effect = 0;
+        }
+      } else {
+        // nothing
+      }
+    } else {
+      if(v2.equalsIgnoreCase("e")) {
+        ledstripes1_effect = i1;
+        ledstripes2_effect = i1;
+      } else {
+        stripeSetColor(ledstripes1_name, ledstripes_obj[0], i1);
+        ledstripes1_effect = 0;
+        stripeSetColor(ledstripes2_name, ledstripes_obj[1], i1);
+        ledstripes2_effect = 0;
+      }
+    }
   }
 }
 
@@ -690,7 +792,7 @@ String split(String data, char separator, int index) {
   return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
-int sanitizeValue(String data, int, default = 0, int min = 0, int max = 255) {
+int sanitizeValue(String data, int default = 0, int min = 0, int max = 255) {
   int tmp;
   if(data.length() > 0) {
     tmp = data.toInt();
