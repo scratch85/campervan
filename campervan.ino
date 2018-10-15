@@ -611,7 +611,37 @@ void processSerialInput(String data) {
   String v1, v2, v3, v4;
   uint32_t i1, i2;
   data.toLowerCase();
-  if(data.startsWith("status")) {
+  if(data.equalsIgnoreCase("help")) {
+    DEBUG_PRINT("usage: status [led <1-3>|strip <1-2>|tmp [C|F]]\n");
+    DEBUG_PRINT("   or: led <1-3|all> [on|off|0-255|0-100%]\n");
+    DEBUG_PRINT("   or: strip <1-2|all> <on|off|color|effect [id|name] [...]>\n");
+    DEBUG_PRINT("\n");
+    DEBUG_PRINT("Common commands:\n");
+    DEBUG_PRINT("  status - get the status of leds, strips and sensors\n");
+    DEBUG_PRINT("  led    - control led lights\n");
+    DEBUG_PRINT("  strip  - control led strips\n");
+    DEBUG_PRINT("\n");
+    DEBUG_PRINT("Generic options:\n");
+    DEBUG_PRINT("  <1-3>  - select the device id you want to control\n");
+    DEBUG_PRINT("  all    - select to control all led or strip devices\n");
+    DEBUG_PRINT("\n");
+    DEBUG_PRINT("Specific options:\n");
+    DEBUG_PRINT("  on     - switch device on\n");
+    DEBUG_PRINT("  off    - switch device off\n");
+    DEBUG_PRINT("  0-255  - select brightness as byte\n");
+    DEBUG_PRINT("  0-100% - switch brightness in percent\n");
+    DEBUG_PRINT("  color  - select a specific color (see \"Colors\")\n");
+    DEBUG_PRINT("  effect - select a specific effect by id or name (see \"Effects\")\n");
+    DEBUG_PRINT("\n");
+    DEBUG_PRINT("Colors:\n");
+    DEBUG_PRINT("  black, blue, green, red, white\n");
+    DEBUG_PRINT("\n");
+    DEBUG_PRINT("Effects:\n");
+    DEBUG_PRINT("  1: rainbow (rb)       - rainbow colors slowly changing\n");
+    DEBUG_PRINT("  2: rainbowcycle (rbc) - all rainbow colors cycling at once\n");
+    DEBUG_PRINT("  3: knightrider (kr)   - moving red light\n");
+    DEBUG_PRINT("\n");
+  } else if(data.startsWith("status")) {
     v1 = split(data,' ',1);
     if(v1.equals("led")) {
       v1 = split(data,' ',2);
