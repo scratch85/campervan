@@ -1,4 +1,5 @@
 #include <ButtonEvents.h>
+#include "Led.h"
 #include <Adafruit_NeoPixel.h>
 #include "Color_Definitions.h"
 #include <TMP36.h>
@@ -22,20 +23,9 @@
 #define SERIAL1_TIMEOUT 100
 #define SERIAL2_TIMEOUT 100
 
-// button
-// tap => on or off
-// double tap => if off => on 80%
-//            => if on => dimm down 20% (until off)
-// hold => if off dimm up until 100%
-//         if on dimm down until off
-
 // Sliding Door 1 (top)
 #define BUTTON_SD1_PIN 1
 ButtonEvents btnSD1;
-bool btnSD1Hold = false;
-int btnSD1HoldMode = -1;
-unsigned long btnSD1Time = 0;
-unsigned long btnSD1Interval = 600;
 
 // Sliding Door 2 (bottom)
 #define BUTTON_SD2_PIN 2
@@ -59,16 +49,13 @@ ButtonEvents btnCS2;
 
 // LED Spots 1, 2, 3 (front -> back)
 #define LED1_PIN 21
-int led1Val = 0;
-int led1Val2 = led1Val;
+Led led1(LED1_PIN);
 
 #define LED2_PIN 22
-int led2Val = 0;
-int led2Val2 = led2Val;
+Led led2(LED2_PIN);
 
 #define LED3_PIN 23
-int led3Val = 0;
-int led3Val2 = led3Val;
+Led led3(LED3_PIN);
 
 // Number of ledstrips
 #define LEDSTRIPS 2
@@ -179,16 +166,6 @@ void setup() {
   btnCS2.doubleTapTime(200);
   //btnCS2.holdTime(2000);
 
-  // Initialize LED Spots
-  pinMode(LED1_PIN, OUTPUT);
-  digitalWrite(LED1_PIN, LOW);
-  
-  pinMode(LED2_PIN, OUTPUT);
-  digitalWrite(LED2_PIN, LOW);
-  
-  pinMode(LED3_PIN, OUTPUT);
-  digitalWrite(LED3_PIN, LOW);
-
   // Initialize LED strips
   strips[0].name = "Strip1 (Driver)";
   strips[0].obj = Adafruit_NeoPixel(LEDSTRIP1_PIXELS, LEDSTRIP1_PIN, NEO_GRBW + NEO_KHZ800);
@@ -244,91 +221,26 @@ void loop() {
   if(btnSD1.update() == true) {
     switch(btnSD1.event()) {
       case (tap):
-        if(led1Val > 0) {
-          DEBUG_PRINT("btnSD1: tap event detected: ON ");
-          DEBUG_PRINT(round(led1Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led1Val);
-          DEBUG_PRINT(") => OFF\n");
-          led1Val = 0;
-        } else {
-          led1Val = 254;
-          DEBUG_PRINT("btnSD1: tap event detected: OFF => ON 100% (");
-          DEBUG_PRINT(led1Val);
-          DEBUG_PRINT(")\n");
-        }
+        DEBUG_PRINT("btnSD1: tap event detected");
+        led1.toggle();
         break;
       case (doubleTap):
-        if(led1Val > 0) {
-          DEBUG_PRINT("btnSD1: doubleTap event detected: ON ");
-          DEBUG_PRINT(round(led1Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led1Val);
-          DEBUG_PRINT(") => ON ");
-          led1Val = max(0,round(led1Val - (254 * 0.2)));
-          DEBUG_PRINT(round(led1Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led1Val);
-          DEBUG_PRINT(")\n");
+        DEBUG_PRINT("btnSD1: doubleTap event detected");
+        if(led1.isOn()) {
+          led1.dimDown(round(255 * 0.2)); // dim down 20%
         } else {
-          led1Val = round(254 - (254 * 0.2));
-          DEBUG_PRINT("btnSD1: doubleTap event detected: OFF => ON 80% (");
-          DEBUG_PRINT(led1Val);
-          DEBUG_PRINT(")\n");
+          led1.on(round(255 * 0.8)); // switch on @ 80%
         }
         break;
       case (hold):
-        btnSD1Hold = true;
-        if(led1Val > 0) {
-          btnSD1HoldMode = 0;
-        } else {
-          btnSD1HoldMode = 1;
-        }
-        btnSD1Time = millis();
+        DEBUG_PRINT("btnSD1: hold event detected");
+        led1.on();
+        led2.on();
+        led3.on();
         break;
       case (none):
         break;
     }
-  }
-  if(btnSD1Hold && btnSD1.read() == HIGH) {
-    if(millis() - btnSD1Time > btnSD1Interval) {
-      btnSD1Time = millis();
-
-      DEBUG_PRINT("btnSD1: hold event detected: ");
-      if(led1Val > 0) {
-        DEBUG_PRINT("ON ");
-        DEBUG_PRINT(round(led1Val * 100 / 254));
-        DEBUG_PRINT("% (");
-        DEBUG_PRINT(led1Val);
-        DEBUG_PRINT(")");
-      } else {
-        DEBUG_PRINT("OFF");
-      }
-      if(btnSD1HoldMode == 0) {
-        led1Val = round(led1Val - (254 * 0.1));
-        if(led1Val <= 0) {
-          led1Val = 0;
-          btnSD1HoldMode = 1;
-        }
-      } else {
-        led1Val = round(led1Val + (254 * 0.1));
-        if(led1Val >= 254) {
-          led1Val = 254;
-          btnSD1HoldMode = 0;
-        }
-      }
-      if(led1Val > 0) {
-        DEBUG_PRINT(" => ON ");
-        DEBUG_PRINT(round(led1Val * 100 / 254));
-        DEBUG_PRINT("% (");
-        DEBUG_PRINT(led1Val);
-        DEBUG_PRINT(")\n");
-      } else {
-        DEBUG_PRINT(" => OFF\n");
-      }
-    }
-  } else {
-    btnSD1Hold = false;
   }
   // - - - - - END # Button Sliding Door 1 - - - - - - - - - -
 
@@ -336,44 +248,22 @@ void loop() {
   if(btnDS1.update() == true) {
     switch(btnDS1.event()) {
       case (tap):
-        if(led3Val > 0) {
-          DEBUG_PRINT("btnDS1: tap event detected: ON ");
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(") => OFF\n");
-          led3Val = 0;
-        } else {
-          led3Val = 254;
-          DEBUG_PRINT("btnDS1: tap event detected: OFF => ON 100% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
-        }
+        DEBUG_PRINT("btnDS1: tap event detected");
+        led3.toggle();
         break;
       case (doubleTap):
-        if(led3Val > 0) {
-          DEBUG_PRINT("btnDS1: doubleTap event detected: ON ");
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(") => ON ");
-          led3Val = max(0,round(led3Val - (254 * 0.2)));
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
+        DEBUG_PRINT("btnDS1: doubleTap event detected");
+        if(led3.isOn()) {
+          led3.dimDown(round(255 * 0.2)); // dim down 20%
         } else {
-          led3Val = round(254 - (254 * 0.2));
-          DEBUG_PRINT("btnDS1: doubleTap event detected: OFF => ON 80% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
+          led3.on(round(255 * 0.8)); // switch on @ 80%
         }
         break;
       case (hold):
-        DEBUG_PRINT("btnDS1: hold event detected: ALL OFF\n");
-        led1Val = 0;
-        led2Val = 0;
-        led3Val = 0;
+        DEBUG_PRINT("btnDS1: hold event detected");
+        led1.off();
+        led2.off();
+        led3.off();
         break;
       case (none):
         break;
@@ -415,44 +305,22 @@ void loop() {
   if(btnCS1.update() == true) {
     switch(btnCS1.event()) {
       case (tap):
-        if(led3Val > 0) {
-          DEBUG_PRINT("btnCS1: tap event detected: ON ");
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(") => OFF\n");
-          led3Val = 0;
-        } else {
-          led3Val = 254;
-          DEBUG_PRINT("btnCS1: tap event detected: OFF => ON 100% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
-        }
+        DEBUG_PRINT("btnCS1: tap event detected");
+        led3.toggle();
         break;
       case (doubleTap):
-        if(led3Val > 0) {
-          DEBUG_PRINT("btnCS1: doubleTap event detected: ON ");
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(") => ON ");
-          led3Val = max(0,round(led3Val - (254 * 0.2)));
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
+        DEBUG_PRINT("btnCS1: doubleTap event detected");
+        if(led3.isOn()) {
+          led3.dimDown(round(255 * 0.2)); // dim down 20%
         } else {
-          led3Val = round(254 - (254 * 0.2));
-          DEBUG_PRINT("btnCS1: doubleTap event detected: OFF => ON 80% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
+          led3.on(round(255 * 0.8)); // switch on @ 80%
         }
         break;
       case (hold):
         DEBUG_PRINT("btnCS1: hold event detected: ALL OFF\n");
-        led1Val = 0;
-        led2Val = 0;
-        led3Val = 0;
+        led1.off();
+        led2.off();
+        led3.off();
         break;
       case (none):
         break;
@@ -489,45 +357,6 @@ void loop() {
     }
   }
   // - - - - - END # Button Co-Driver Seat 2 - - - - - - - - - -
-
-  // Handle LED1
-  if(led1Val != led1Val2) {
-    if(led1Val == 0) {
-      // Turn off the LED
-      //digitalWrite(LED1_PIN, LOW);
-      analogWrite(LED1_PIN, LOW);
-    } else {
-      // Turn on the LED and dimm
-      analogWrite(LED1_PIN, led1Val);
-    }
-  }
-  led1Val2 = led1Val;
-
-  // Handle LED2
-  if(led2Val != led2Val2) {
-    if(led2Val == 0) {
-      // Turn off the LED
-      //digitalWrite(LED2_PIN, LOW);
-      analogWrite(LED2_PIN, LOW);
-    } else {
-      // Turn on the LED and dimm
-      analogWrite(LED2_PIN, led2Val);
-    }
-  }
-  led2Val2 = led2Val;
-
-  // Handle LED3
-  if(led3Val != led3Val2) {
-    if(led3Val == 0) {
-      // Turn off the LED
-      //digitalWrite(LED3_PIN, LOW);
-      analogWrite(LED3_PIN, LOW);
-    } else {
-      // Turn on the LED and dimm
-      analogWrite(LED3_PIN, led3Val);
-    }
-  }
-  led3Val2 = led3Val;
 
   // Handle LED strips
   for(unsigned int i = 0; i < LEDSTRIPS; i++) {
@@ -596,23 +425,23 @@ void processSerialInput(String data) {
         DEBUG_PRINT(v1);
         DEBUG_PRINT(": ");
         if(v1.equalsIgnoreCase("1")) {
-          DEBUG_PRINT(led1Val);
+          DEBUG_PRINT(led1.getBrightness());
         } else if(v1.equalsIgnoreCase("2")) {
-          DEBUG_PRINT(led2Val);
+          DEBUG_PRINT(led2.getBrightness());
         } else if(v1.equalsIgnoreCase("3")) {
-          DEBUG_PRINT(led3Val);
+          DEBUG_PRINT(led3.getBrightness());
         } else {
           DEBUG_PRINT(0);
         }
       } else {
         DEBUG_PRINT("led1: ");
-        DEBUG_PRINT(led1Val);
+        DEBUG_PRINT(led1.getBrightness());
         DEBUG_PRINT("\n");
         DEBUG_PRINT("led2: ");
-        DEBUG_PRINT(led2Val);
+        DEBUG_PRINT(led2.getBrightness());
         DEBUG_PRINT("\n");
         DEBUG_PRINT("led3: ");
-        DEBUG_PRINT(led3Val);
+        DEBUG_PRINT(led3.getBrightness());
       }
       DEBUG_PRINT("\n");
     } else if(v1.equals("strip")) {
@@ -647,13 +476,13 @@ void processSerialInput(String data) {
       DEBUG_PRINT("\n");
     } else {
       DEBUG_PRINT("led1: ");
-      DEBUG_PRINT(led1Val);
+      DEBUG_PRINT(led1.getBrightness());
       DEBUG_PRINT("\n");
       DEBUG_PRINT("led2: ");
-      DEBUG_PRINT(led2Val);
+      DEBUG_PRINT(led2.getBrightness());
       DEBUG_PRINT("\n");
       DEBUG_PRINT("led3: ");
-      DEBUG_PRINT(led3Val);
+      DEBUG_PRINT(led3.getBrightness());
       DEBUG_PRINT("\n");
       DEBUG_PRINT("strip1: ");
       DEBUG_PRINT(stripGetState(&strips[0]));
@@ -679,18 +508,18 @@ void processSerialInput(String data) {
     }
     if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2") || v1.equalsIgnoreCase("3")) {
       if(v1.equalsIgnoreCase("1")) {
-        led1Val = i1;
+        led1.on(i1);
       } else if(v1.equalsIgnoreCase("2")) {
-        led2Val = i1;
+        led2.on(i1);
       } else if(v1.equalsIgnoreCase("3")) {
-        led3Val = i1;
+        led3.on(i1);
       } else {
         // nothing
       }
     } else {
-      led1Val = i1;
-      led2Val = i1;
-      led3Val = i1;
+      led1.on(i1);
+      led2.on(i1);
+      led3.on(i1);
     }
   } else if(data.equals("strip")) {
     v1 = split(data,' ',1);
