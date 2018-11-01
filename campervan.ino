@@ -50,13 +50,9 @@ ButtonEvents btnCS2;
 
 // LED Spots 1, 2, 3 (front -> back)
 #define LED1_PIN 21
-Led led1(LED1_PIN);
-
 #define LED2_PIN 22
-Led led2(LED2_PIN);
-
 #define LED3_PIN 23
-Led led3(LED3_PIN);
+Led led1, led2, led3;
 
 // Number of ledstrips
 #define LEDSTRIPS 2
@@ -166,6 +162,11 @@ void setup() {
   //btnCS2.debounceTime(15);
   btnCS2.doubleTapTime(200);
   //btnCS2.holdTime(2000);
+
+  // Initialize LEDs
+  led1.attach(LED1_PIN);
+  led2.attach(LED2_PIN);
+  led3.attach(LED3_PIN);
 
   // Initialize LED strips
   strips[0].name = "Strip1 (Driver)";

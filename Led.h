@@ -3,7 +3,8 @@
 
 class Led {
   public:
-    Led(uint8_t);
+    Led();
+    void attach(uint8_t pin);
     void on();
     void on(uint8_t);
     void off();
@@ -11,8 +12,9 @@ class Led {
     void dimDown(uint8_t);
     void toggle();
     bool isOn();
-    byte getPin();
-    byte getBrightness();
+    bool isAttached();
+    uint8_t getPin();
+    uint8_t getBrightness();
   private:
     uint8_t pin;
     uint8_t brightness;
