@@ -556,7 +556,30 @@ void loop() {
 void processSerialInput(String data) {
   String v1, v2, v3, v4;
   uint32_t i1, i2;
+
+  // process everything in lowercase
   data.toLowerCase();
+  DEBUG_PRINT("processSerialInput: ");
+  DEBUG_PRINT(data);
+  DEBUG_PRINT("\n");
+
+  // debug split
+  i1 = 0;
+  v1 = split(data,' ',0);
+  DEBUG_PRINT("split_");
+  DEBUG_PRINT(i1);
+  DEBUG_PRINT(": ");
+  DEBUG_PRINT(v1);
+  DEBUG_PRINT("\n");
+  while(v1.length() > 0 && i1 < 10) {
+    v1 = split(data,' ',i1++);
+    DEBUG_PRINT("split_");
+    DEBUG_PRINT(i1);
+    DEBUG_PRINT(": ");
+    DEBUG_PRINT(v1);
+    DEBUG_PRINT("\n");
+  }
+
   if(data.equalsIgnoreCase("help")) {
     DEBUG_PRINT("usage: status [led <1-3>|strip <1-2>|tmp [C|F]]\n");
     DEBUG_PRINT("   or: led <1-3|all> [on|off|0-255|0-100%]\n");
