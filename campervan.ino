@@ -6,13 +6,14 @@
 
 // Debugging Serial & Serial2 (BLE) 
 //#define DEBUG
+#define ENABLE_BLE
 #define DEBUG_BLE
 
-#if defined DEBUG && defined DEBUG_BLE
+#if defined DEBUG && defined ENABLE_BLE && defined DEBUG_BLE
   #define DEBUG_PRINT(x) Serial.print(x); Serial2.print(x);
 #elif defined DEBUG
   #define DEBUG_PRINT(x) Serial.print(x);
-#elif defined DEBUG_BLE
+#elif defined ENABLE_BLE && defined DEBUG_BLE
   #define DEBUG_PRINT(x) Serial2.print(x);
 #else
   #define DEBUG_PRINT(x)
@@ -188,6 +189,7 @@ void setup() {
 
 void loop() {
   // Read from Seriel2 (Bluetooth Low Energy (BLE) module) ...
+#ifdef ENABLE_BLE
   String strBluetooth = "";
   if(Serial2.available() > 0) {
     strBluetooth = Serial2.readString();
@@ -200,6 +202,7 @@ void loop() {
     DEBUG_PRINT("\n");
     processSerialInput(strBluetooth);
   }
+#endif
 
   // Read from Serial ...
 #ifdef DEBUG
