@@ -1,7 +1,8 @@
-#include <ButtonEvents.h>
+#include <AceButton.h>
 #include <Adafruit_NeoPixel.h>
 #include "Color_Definitions.h"
 #include <TMP36.h>
+using namespace ace_button;
 
 // Debugging Serial & Serial2 (BLE) 
 //#define DEBUG
@@ -23,40 +24,25 @@
 #define SERIAL1_TIMEOUT 100
 #define SERIAL2_TIMEOUT 100
 
-// button
-// tap => on or off
-// double tap => if off => on 80%
-//            => if on => dimm down 20% (until off)
-// hold => if off dimm up until 100%
-//         if on dimm down until off
+// Buttons
+ButtonConfig buttonConfigBed;
+ButtonConfig buttonConfigStrip;
 
-// Sliding Door 1 (top)
-#define BUTTON_SD1_PIN 1
-ButtonEvents btnSD1;
-bool btnSD1Hold = false;
-int btnSD1HoldMode = -1;
-unsigned long btnSD1Time = 0;
-unsigned long btnSD1Interval = 600;
+#define BUTTON_SD1_PIN 1  // Sliding Door 1 (top)
+#define BUTTON_SD2_PIN 2  // Sliding Door 2 (bottom)
+AceButton btnSD1, btnSD2;
 
-// Sliding Door 2 (bottom)
-#define BUTTON_SD2_PIN 2
-ButtonEvents btnSD2;
+#define BUTTON_DS1_PIN 12 // Driver Seat 1 (left, top)
+#define BUTTON_DS2_PIN 11 // Driver Seat 2 (left, bottom)
+AceButton btnDS1(&buttonConfigBed), btnDS2(&buttonConfigStrip);
 
-// Driver Seat 1 (left, top)
-#define BUTTON_DS1_PIN 12
-ButtonEvents btnDS1;
+#define BUTTON_CS1_PIN 8  // Co-Driver Seat 1 (right, top)
+#define BUTTON_CS2_PIN 7  // Co-Driver Seat 2 (right, bottom)
+AceButton btnCS1(&buttonConfigBed), btnCS2(&buttonConfigStrip);
 
-// Driver Seat 2 (left, bottom)
-#define BUTTON_DS2_PIN 11
-ButtonEvents btnDS2;
-
-// Co-Driver Seat 1 (right, top)
-#define BUTTON_CS1_PIN 8
-ButtonEvents btnCS1;
-
-// Co-Driver Seat 2 (right, bottom)
-#define BUTTON_CS2_PIN 7
-ButtonEvents btnCS2;
+void handleSystemEvent(AceButton*, uint8_t, uint8_t);
+void handleBedEvent(AceButton*, uint8_t, uint8_t);
+void handleStripEvent(AceButton*, uint8_t, uint8_t);
 
 // LED Spots 1, 2, 3 (front -> back)
 #define LED1_PIN 21
@@ -138,48 +124,37 @@ void setup() {
 #endif
 
   // Initialize buttons
+  ButtonConfig* systemButtonConfig = ButtonConfig::getSystemButtonConfig();
+  systemButtonConfig->setEventHandler(handleSystemEvent);
+  systemButtonConfig->setFeature(ButtonConfig::kFeatureClick);
+  systemButtonConfig->setFeature(ButtonConfig::kFeatureDoubleClick);
+  systemButtonConfig->setFeature(ButtonConfig::kFeatureLongPress);
+
+  buttonConfigBed.setEventHandler(handleBedEvent);
+  buttonConfigBed.setFeature(ButtonConfig::kFeatureClick);
+  buttonConfigBed.setFeature(ButtonConfig::kFeatureDoubleClick);
+  buttonConfigBed.setFeature(ButtonConfig::kFeatureLongPress);
+  
+  buttonConfigStrip.setEventHandler(handleStripEvent);
+  buttonConfigStrip.setFeature(ButtonConfig::kFeatureClick);
+  buttonConfigStrip.setFeature(ButtonConfig::kFeatureDoubleClick);
+  buttonConfigStrip.setFeature(ButtonConfig::kFeatureLongPress);
+
   pinMode(BUTTON_SD1_PIN, INPUT_PULLUP);
-  btnSD1.attach(BUTTON_SD1_PIN);
-  btnSD1.activeHigh();
-  //btnSD1.debounceTime(15);
-  btnSD1.doubleTapTime(200);
-  //btnSD1.holdTime(2000);
-
+  btnSD1.init(BUTTON_SD1_PIN, HIGH, 0);
   pinMode(BUTTON_SD2_PIN, INPUT_PULLUP);
-  btnSD2.attach(BUTTON_SD2_PIN);
-  btnSD2.activeHigh();
-  //btnSD2.debounceTime(15);
-  btnSD2.doubleTapTime(200);
-  //btnSD2.holdTime(2000);
-
+  btnSD2.init(BUTTON_SD2_PIN, HIGH, 1);
+  
   pinMode(BUTTON_DS1_PIN, INPUT_PULLUP);
-  btnDS1.attach(BUTTON_DS1_PIN);
-  btnDS1.activeHigh();
-  //btnDS1.debounceTime(15);
-  btnDS1.doubleTapTime(200);
-  btnDS1.holdTime(2000);
+  btnDS1.init(BUTTON_DS1_PIN, HIGH, 0);
+  pinMode(BUTTON_CS1_PIN, INPUT_PULLUP);
+  btnCS1.init(BUTTON_CS1_PIN, HIGH, 1);
 
   pinMode(BUTTON_DS2_PIN, INPUT_PULLUP);
-  btnDS2.attach(BUTTON_DS2_PIN);
-  btnDS2.activeHigh();
-  //btnDS2.debounceTime(15);
-  btnDS2.doubleTapTime(200);
-  //btnDS2.holdTime(2000);
-
-  pinMode(BUTTON_CS1_PIN, INPUT_PULLUP);
-  btnCS1.attach(BUTTON_CS1_PIN);
-  btnCS1.activeHigh();
-  //btnCS1.debounceTime(15);
-  btnCS1.doubleTapTime(200);
-  btnCS1.holdTime(2000);
-
+  btnDS2.init(BUTTON_DS2_PIN, HIGH, 0);
   pinMode(BUTTON_CS2_PIN, INPUT_PULLUP);
-  btnCS2.attach(BUTTON_CS2_PIN);
-  btnCS2.activeHigh();
-  //btnCS2.debounceTime(15);
-  btnCS2.doubleTapTime(200);
-  //btnCS2.holdTime(2000);
-
+  btnCS2.init(BUTTON_CS2_PIN, HIGH, 1);
+  
   // Initialize LED Spots
   pinMode(LED1_PIN, OUTPUT);
   digitalWrite(LED1_PIN, LOW);
@@ -243,255 +218,13 @@ void loop() {
   }
 #endif
 
-  // - - - - - BEGIN # Button Sliding Door 1 - - - - - - - - - -
-  if(btnSD1.update() == true) {
-    switch(btnSD1.event()) {
-      case (tap):
-        if(led1Val > 0) {
-          DEBUG_PRINT("btnSD1: tap event detected: ON ");
-          DEBUG_PRINT(round(led1Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led1Val);
-          DEBUG_PRINT(") => OFF\n");
-          led1Val = 0;
-        } else {
-          led1Val = 254;
-          DEBUG_PRINT("btnSD1: tap event detected: OFF => ON 100% (");
-          DEBUG_PRINT(led1Val);
-          DEBUG_PRINT(")\n");
-        }
-        break;
-      case (doubleTap):
-        if(led1Val > 0) {
-          DEBUG_PRINT("btnSD1: doubleTap event detected: ON ");
-          DEBUG_PRINT(round(led1Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led1Val);
-          DEBUG_PRINT(") => ON ");
-          led1Val = max(0,round(led1Val - (254 * 0.2)));
-          DEBUG_PRINT(round(led1Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led1Val);
-          DEBUG_PRINT(")\n");
-        } else {
-          led1Val = round(254 - (254 * 0.2));
-          DEBUG_PRINT("btnSD1: doubleTap event detected: OFF => ON 80% (");
-          DEBUG_PRINT(led1Val);
-          DEBUG_PRINT(")\n");
-        }
-        break;
-      case (hold):
-        btnSD1Hold = true;
-        if(led1Val > 0) {
-          btnSD1HoldMode = 0;
-        } else {
-          btnSD1HoldMode = 1;
-        }
-        btnSD1Time = millis();
-        break;
-      case (none):
-        break;
-    }
-  }
-  if(btnSD1Hold && btnSD1.read() == HIGH) {
-    if(millis() - btnSD1Time > btnSD1Interval) {
-      btnSD1Time = millis();
-
-      DEBUG_PRINT("btnSD1: hold event detected: ");
-      if(led1Val > 0) {
-        DEBUG_PRINT("ON ");
-        DEBUG_PRINT(round(led1Val * 100 / 254));
-        DEBUG_PRINT("% (");
-        DEBUG_PRINT(led1Val);
-        DEBUG_PRINT(")");
-      } else {
-        DEBUG_PRINT("OFF");
-      }
-      if(btnSD1HoldMode == 0) {
-        led1Val = round(led1Val - (254 * 0.1));
-        if(led1Val <= 0) {
-          led1Val = 0;
-          btnSD1HoldMode = 1;
-        }
-      } else {
-        led1Val = round(led1Val + (254 * 0.1));
-        if(led1Val >= 254) {
-          led1Val = 254;
-          btnSD1HoldMode = 0;
-        }
-      }
-      if(led1Val > 0) {
-        DEBUG_PRINT(" => ON ");
-        DEBUG_PRINT(round(led1Val * 100 / 254));
-        DEBUG_PRINT("% (");
-        DEBUG_PRINT(led1Val);
-        DEBUG_PRINT(")\n");
-      } else {
-        DEBUG_PRINT(" => OFF\n");
-      }
-    }
-  } else {
-    btnSD1Hold = false;
-  }
-  // - - - - - END # Button Sliding Door 1 - - - - - - - - - -
-
-  // - - - - - BEGIN # Button Driver Seat 1 - - - - - - - - - -
-  if(btnDS1.update() == true) {
-    switch(btnDS1.event()) {
-      case (tap):
-        if(led3Val > 0) {
-          DEBUG_PRINT("btnDS1: tap event detected: ON ");
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(") => OFF\n");
-          led3Val = 0;
-        } else {
-          led3Val = 254;
-          DEBUG_PRINT("btnDS1: tap event detected: OFF => ON 100% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
-        }
-        break;
-      case (doubleTap):
-        if(led3Val > 0) {
-          DEBUG_PRINT("btnDS1: doubleTap event detected: ON ");
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(") => ON ");
-          led3Val = max(0,round(led3Val - (254 * 0.2)));
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
-        } else {
-          led3Val = round(254 - (254 * 0.2));
-          DEBUG_PRINT("btnDS1: doubleTap event detected: OFF => ON 80% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
-        }
-        break;
-      case (hold):
-        DEBUG_PRINT("btnDS1: hold event detected: ALL OFF\n");
-        led1Val = 0;
-        led2Val = 0;
-        led3Val = 0;
-        break;
-      case (none):
-        break;
-    }
-  }
-  // - - - - - END # Button Driver Seat 1 - - - - - - - - - -
-
-  // - - - - - BEGIN # Button Driver Seat 2 - - - - - - - - - -
-  if(btnDS2.update() == true) {
-    switch(btnDS2.event()) {
-      case (tap):
-        DEBUG_PRINT("btnDS2: tap event detected\n");
-        if(strips[0].effect > 0 || !stripGetState(&strips[0])) {
-          stripSetColor(&strips[0], WHITE_LED);
-          strips[0].effect = 0;
-        } else {
-          stripSetColor(&strips[0], BLACK);
-          strips[0].effect = 0;
-        }
-        break;
-      case (doubleTap):
-        DEBUG_PRINT("btnDS2: doubleTap event detected\n");
-        strips[0].effect++;
-        if(strips[0].effect > 2) {
-          stripSetColor(&strips[0], BLACK);
-          strips[0].effect = 0;
-        }
-        break;
-      case (hold):
-        DEBUG_PRINT("btnDS2: hold event detected\n");
-        break;
-      case (none):
-        break;
-    }
-  }
-  // - - - - - END # Button Driver Seat 2 - - - - - - - - - -
-
-  // - - - - - BEGIN # Button Co-Driver Seat 1 - - - - - - - - - -
-  if(btnCS1.update() == true) {
-    switch(btnCS1.event()) {
-      case (tap):
-        if(led3Val > 0) {
-          DEBUG_PRINT("btnCS1: tap event detected: ON ");
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(") => OFF\n");
-          led3Val = 0;
-        } else {
-          led3Val = 254;
-          DEBUG_PRINT("btnCS1: tap event detected: OFF => ON 100% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
-        }
-        break;
-      case (doubleTap):
-        if(led3Val > 0) {
-          DEBUG_PRINT("btnCS1: doubleTap event detected: ON ");
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(") => ON ");
-          led3Val = max(0,round(led3Val - (254 * 0.2)));
-          DEBUG_PRINT(round(led3Val * 100 / 254));
-          DEBUG_PRINT("% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
-        } else {
-          led3Val = round(254 - (254 * 0.2));
-          DEBUG_PRINT("btnCS1: doubleTap event detected: OFF => ON 80% (");
-          DEBUG_PRINT(led3Val);
-          DEBUG_PRINT(")\n");
-        }
-        break;
-      case (hold):
-        DEBUG_PRINT("btnCS1: hold event detected: ALL OFF\n");
-        led1Val = 0;
-        led2Val = 0;
-        led3Val = 0;
-        break;
-      case (none):
-        break;
-    }
-  }
-  // - - - - - END # Button Co-Driver Seat 1 - - - - - - - - - -
-
-  // - - - - - BEGIN # Button Co-Driver Seat 2 - - - - - - - - - -
-  if(btnCS2.update() == true) {
-    switch(btnCS2.event()) {
-      case (tap):
-        DEBUG_PRINT("btnCS2: tap event detected\n");
-        if(strips[0].effect > 0 || !stripGetState(&strips[0])) {
-          stripSetColor(&strips[0], WHITE_LED);
-          strips[0].effect = 0;
-        } else {
-          stripSetColor(&strips[0], BLACK);
-          strips[0].effect = 0;
-        }
-        break;
-      case (doubleTap):
-        DEBUG_PRINT("btnCS2: doubleTap event detected\n");
-        strips[0].effect++;
-        if(strips[0].effect > 2) {
-          stripSetColor(&strips[0], BLACK);
-          strips[0].effect = 0;
-        }
-        break;
-      case (hold):
-        DEBUG_PRINT("btnCS2: hold event detected\n");
-        break;
-      case (none):
-        break;
-    }
-  }
-  // - - - - - END # Button Co-Driver Seat 2 - - - - - - - - - -
+  // The buttons
+  btnSD1.check();
+  btnSD2.check();
+  btnDS1.check();
+  btnDS2.check();
+  btnCS1.check();
+  btnCS2.check();
 
   // Handle LED1
   if(led1Val != led1Val2) {
@@ -806,7 +539,164 @@ uint32_t getColorFromString(String c) {
   if(c.equalsIgnoreCase("red")   || c.equalsIgnoreCase("r"))  return RED;
   if(c.equalsIgnoreCase("white") || c.equalsIgnoreCase("w"))  return WHITE_LED;
   return sanitizeValue(c, 0, 0, 4294967295);
-} 
+}
+
+void handleSystemEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
+  // Print out a message for all events.
+  DEBUG_PRINT(F("handleSystemEvent(): eventType: "));
+  DEBUG_PRINT(eventType);
+  DEBUG_PRINT("\n");
+  DEBUG_PRINT(F("; buttonState: "));
+  DEBUG_PRINT(buttonState);
+  DEBUG_PRINT("\n");
+
+  switch (eventType) {
+    case AceButton::kEventClicked:
+      if(led1Val > 0) {
+        DEBUG_PRINT(button->getId());
+        DEBUG_PRINT(": tap event detected: ON ");
+        DEBUG_PRINT(round(led1Val * 100 / 254));
+        DEBUG_PRINT("% (");
+        DEBUG_PRINT(led1Val);
+        DEBUG_PRINT(") => OFF\n");
+        led1Val = 0;
+      } else {
+        led1Val = 254;
+        DEBUG_PRINT(button->getId());
+        DEBUG_PRINT(": tap event detected: OFF => ON 100% (");
+        DEBUG_PRINT(led1Val);
+        DEBUG_PRINT(")\n");
+      }
+      break;
+    case AceButton::kEventDoubleClicked:
+      if(led1Val > 0) {
+        DEBUG_PRINT(button->getId());
+        DEBUG_PRINT(": doubleTap event detected: ON ");
+        DEBUG_PRINT(round(led1Val * 100 / 254));
+        DEBUG_PRINT("% (");
+        DEBUG_PRINT(led1Val);
+        DEBUG_PRINT(") => ON ");
+        led1Val = max(0,round(led1Val - (254 * 0.2)));
+        DEBUG_PRINT(round(led1Val * 100 / 254));
+        DEBUG_PRINT("% (");
+        DEBUG_PRINT(led1Val);
+        DEBUG_PRINT(")\n");
+      } else {
+        led1Val = round(254 - (254 * 0.2));
+        DEBUG_PRINT(button->getId());
+        DEBUG_PRINT(": doubleTap event detected: OFF => ON 80% (");
+        DEBUG_PRINT(led1Val);
+        DEBUG_PRINT(")\n");
+      }
+      break;
+    case AceButton::kEventLongPressed:
+      DEBUG_PRINT(button->getId());
+      DEBUG_PRINT(": kEventLongPressed event detected: ALL OFF\n");
+      led1Val = 0;
+      led2Val = 0;
+      led3Val = 0;
+      break;
+  }
+}
+
+void handleBedEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
+  // Print out a message for all events.
+  DEBUG_PRINT(F("handleBedEvent(): eventType: "));
+  DEBUG_PRINT(eventType);
+  DEBUG_PRINT("\n");
+  DEBUG_PRINT(F("; buttonState: "));
+  DEBUG_PRINT(buttonState);
+  DEBUG_PRINT("\n");
+
+  switch (eventType) {
+    case AceButton::kEventClicked:
+      if(led3Val > 0) {
+        DEBUG_PRINT(button->getId());
+        DEBUG_PRINT(": kEventClicked event detected: ON ");
+        DEBUG_PRINT(round(led3Val * 100 / 254));
+        DEBUG_PRINT("% (");
+        DEBUG_PRINT(led3Val);
+        DEBUG_PRINT(") => OFF\n");
+        led3Val = 0;
+      } else {
+        led3Val = 254;
+        DEBUG_PRINT(button->getId());
+        DEBUG_PRINT(": tap event detected: OFF => ON 100% (");
+        DEBUG_PRINT(led3Val);
+        DEBUG_PRINT(")\n");
+      }
+      break;
+    case AceButton::kEventDoubleClicked:
+      if(led3Val > 0) {
+        DEBUG_PRINT(button->getId());
+        DEBUG_PRINT(": kEventDoubleClicked event detected: ON ");
+        DEBUG_PRINT(round(led3Val * 100 / 254));
+        DEBUG_PRINT("% (");
+        DEBUG_PRINT(led3Val);
+        DEBUG_PRINT(") => ON ");
+        led3Val = max(0,round(led3Val - (254 * 0.2)));
+        DEBUG_PRINT(round(led3Val * 100 / 254));
+        DEBUG_PRINT("% (");
+        DEBUG_PRINT(led3Val);
+        DEBUG_PRINT(")\n");
+      } else {
+        led3Val = round(254 - (254 * 0.2));
+        DEBUG_PRINT(button->getId());
+        DEBUG_PRINT(": doubleTap event detected: OFF => ON 80% (");
+        DEBUG_PRINT(led3Val);
+        DEBUG_PRINT(")\n");
+      }
+      break;
+    case AceButton::kEventLongPressed:
+      DEBUG_PRINT(button->getId());
+      DEBUG_PRINT(": kEventLongPressed event detected: ALL OFF\n");
+      led1Val = 0;
+      led2Val = 0;
+      led3Val = 0;
+      break;
+  }
+}
+
+void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
+  // Print out a message for all events.
+  DEBUG_PRINT(F("handleStripEvent(): eventType: "));
+  DEBUG_PRINT(eventType);
+  DEBUG_PRINT("\n");
+  DEBUG_PRINT(F("; buttonState: "));
+  DEBUG_PRINT(buttonState);
+  DEBUG_PRINT("\n");
+
+  switch (eventType) {
+    case AceButton::kEventClicked:
+      DEBUG_PRINT(button->getId());
+      DEBUG_PRINT(": kEventClicked event detected\n");
+      if(strips[button->getId()].effect > 0 || !stripGetState(&strips[button->getId()])) {
+        stripSetColor(&strips[button->getId()], WHITE_LED);
+        strips[button->getId()].effect = 0;
+      } else {
+        stripSetColor(&strips[button->getId()], BLACK);
+        strips[button->getId()].effect = 0;
+      }
+      break;
+    case AceButton::kEventDoubleClicked:
+      DEBUG_PRINT(button->getId());
+      DEBUG_PRINT(": kEventDoubleClicked event detected\n");
+      strips[button->getId()].effect++;
+      if(strips[button->getId()].effect > 2) {
+        stripSetColor(&strips[button->getId()], BLACK);
+        strips[button->getId()].effect = 0;
+      }
+      break;
+    case AceButton::kEventLongPressed:
+      DEBUG_PRINT(button->getId());
+      DEBUG_PRINT(": kEventLongPressed event detected: ALL OFF\n");
+      stripSetColor(&strips[0], BLACK);
+      strips[0].effect = 0;
+      stripSetColor(&strips[1], BLACK);
+      strips[1].effect = 0;
+      break;
+  }
+}
 
 // Set all LEDs of the strip to the same color
 void stripSetColor(strip *s, uint32_t c) {
