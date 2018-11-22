@@ -70,7 +70,7 @@ uint8_t Led::getPin() {
 }
 
 uint8_t Led::getBrightness() {
-  return getBrightness();
+  return brightness;
 }
 
 void Led::setBrightness(uint8_t brightness) {

@@ -627,18 +627,18 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
 
 // Set all LEDs of the strip to the same color
 void stripSetColor(strip *s, uint32_t c) {
-  DEBUG_PRINT("stripSetColor (");
-  DEBUG_PRINT(s->name);
-  DEBUG_PRINT(", ");
-  DEBUG_PRINT(c);
-  DEBUG_PRINT(")");
+  //DEBUG_PRINT("stripSetColor (");
+  //DEBUG_PRINT(s->name);
+  //DEBUG_PRINT(", ");
+  //DEBUG_PRINT(c);
+  //DEBUG_PRINT(")");
   for(uint16_t i = 0; i < s->obj->numPixels(); i++) {
-    DEBUG_PRINT(i);
-    DEBUG_PRINT(", ");
+    //DEBUG_PRINT(i);
+    //DEBUG_PRINT(", ");
     s->obj->setPixelColor(i, c);
   }
   s->obj->show();
-  DEBUG_PRINT("stripSetColor: done\n");
+  //DEBUG_PRINT("stripSetColor: done\n");
 }
 
 void stripRainbow(strip *s) {
@@ -719,29 +719,25 @@ uint32_t Wheel(Adafruit_NeoPixel *s, byte WheelPos) {
 
 // Returns true if at least one of the LEDs of the stip is glowing
 bool stripGetState(strip *s) {
-  DEBUG_PRINT("stripGetState(");
-  DEBUG_PRINT(s->name);
-  DEBUG_PRINT(")\n");
+  //DEBUG_PRINT("stripGetState(");
+  //DEBUG_PRINT(s->name);
+  //DEBUG_PRINT(")\n");
   bool state = false;
   uint16_t i = 0;
   while(!state && i < s->obj->numPixels()) {
     if(s->obj->getPixelColor(i) == 0) {
       i++;
     } else {
-      DEBUG_PRINT("stripGetState (");
-      DEBUG_PRINT(i);
-      DEBUG_PRINT("): ");
-      DEBUG_PRINT(s->obj->getPixelColor(i));
-      DEBUG_PRINT("\n");
+      //DEBUG_PRINT("stripGetState (");
+      //DEBUG_PRINT(i);
+      //DEBUG_PRINT("): ");
+      //DEBUG_PRINT(s->obj->getPixelColor(i));
+      //DEBUG_PRINT("\n");
       state = true;
     }
   }
-  DEBUG_PRINT("stripGetColor: state = ");
-  if(state) {
-    DEBUG_PRINT("true\n");
-  } else {
-    DEBUG_PRINT("false\n");
-  }
-  DEBUG_PRINT("stripGetColor: done\n");
+  //DEBUG_PRINT("stripGetColor: state = ");
+  //if(state) { DEBUG_PRINT("true\n"); } else { DEBUG_PRINT("false\n"); }
+  //DEBUG_PRINT("stripGetColor: done\n");
   return state;
 }
