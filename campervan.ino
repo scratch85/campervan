@@ -73,10 +73,12 @@ struct strip {
   unsigned long updateInterval = 50;
   unsigned int j = 0;
   unsigned int m = 0;
-  Adafruit_NeoPixel obj;
+  Adafruit_NeoPixel *obj;
 };
 
 strip strips[LEDSTRIPS];
+Adafruit_NeoPixel strip1 = Adafruit_NeoPixel(LEDSTRIP1_PIXELS, LEDSTRIP1_PIN, NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel strip2 = Adafruit_NeoPixel(LEDSTRIP2_PIXELS, LEDSTRIP2_PIN, NEO_GRBW + NEO_KHZ800);
 
 // Temperatur TMP36
 #define TMP36_PIN A0
@@ -156,21 +158,21 @@ void setup() {
 
   // Initialize LED strips
   strips[0].name = "Strip1 (Driver)";
-  strips[0].obj = Adafruit_NeoPixel(LEDSTRIP1_PIXELS, LEDSTRIP1_PIN, NEO_GRBW + NEO_KHZ800);
+  strips[0].obj = &strip1;
   strips[1].name = "Strip2 (Co-Driver)";
-  strips[1].obj = Adafruit_NeoPixel(LEDSTRIP2_PIXELS, LEDSTRIP2_PIN, NEO_GRBW + NEO_KHZ800);
+  strips[1].obj = &strip1;
   DEBUG_PRINT("Ledstrips:\n");
   for(unsigned int i = 0; i < LEDSTRIPS; i++) {
     DEBUG_PRINT(i);
     DEBUG_PRINT(" on Pin: ");
-    DEBUG_PRINT(strips[i].obj.getPin());
+    DEBUG_PRINT(strips[i].obj->getPin());
     DEBUG_PRINT("\n");
 	  strips[i].effect = 0;
 	  strips[i].lastUpdate = 0;
     strips[i].updateInterval = 50;
-    strips[i].obj.begin();
-    strips[i].obj.setBrightness(LEDSTRIP_BRIGHTNESS);
-    strips[i].obj.show(); // Initialize all pixels to 'off'
+    strips[i].obj->begin();
+    strips[i].obj->setBrightness(LEDSTRIP_BRIGHTNESS);
+    strips[i].obj->show(); // Initialize all pixels to 'off'
   }
 }
 
@@ -630,12 +632,12 @@ void stripSetColor(strip *s, uint32_t c) {
   DEBUG_PRINT(", ");
   DEBUG_PRINT(c);
   DEBUG_PRINT(")");
-  for(uint16_t i = 0; i < s->obj.numPixels(); i++) {
+  for(uint16_t i = 0; i < s->obj->numPixels(); i++) {
     DEBUG_PRINT(i);
     DEBUG_PRINT(", ");
-    s->obj.setPixelColor(i, c);
+    s->obj->setPixelColor(i, c);
   }
-  s->obj.show();
+  s->obj->show();
   DEBUG_PRINT("stripSetColor: done\n");
 }
 
@@ -643,10 +645,10 @@ void stripRainbow(strip *s) {
   //DEBUG_PRINT("stripRainbow(");
   //DEBUG_PRINT(s->name);
   //DEBUG_PRINT(")\n");
-  for(uint16_t i = 0; i < s->obj.numPixels(); i++) {
-    s->obj.setPixelColor(i, Wheel(s->obj,(i + s->j) & 255));
+  for(uint16_t i = 0; i < s->obj->numPixels(); i++) {
+    s->obj->setPixelColor(i, Wheel(s->obj,(i + s->j) & 255));
   }
-  s->obj.show();
+  s->obj->show();
   s->j++;
   if(s->j >= 256) {
     s->j = 0;
@@ -659,10 +661,10 @@ void stripRainbowCycle(strip *s) {
   //DEBUG_PRINT("stripRainbowCycle(");
   //DEBUG_PRINT(s->name);
   //DEBUG_PRINT(")\n");
-  for(uint16_t i = 0; i < s->obj.numPixels(); i++) {
-    s->obj.setPixelColor(i, Wheel(s->obj,((i * 256 / s->obj.numPixels()) + s->j) & 255));
+  for(uint16_t i = 0; i < s->obj->numPixels(); i++) {
+    s->obj->setPixelColor(i, Wheel(s->obj,((i * 256 / s->obj->numPixels()) + s->j) & 255));
   }
-  s->obj.show();
+  s->obj->show();
   s->j++;
   if(s->j >= 256) {
     s->j = 0;
@@ -678,14 +680,14 @@ void stripKnightRider(strip *s, uint32_t c) {
   //DEBUG_PRINT(", ");
   //DEBUG_PRINT(c);
   //DEBUG_PRINT(")\n");
-  for(uint16_t i = 0; i < s->obj.numPixels(); i++) {
+  for(uint16_t i = 0; i < s->obj->numPixels(); i++) {
     if(i >= s->j - x && i <= s->j + x) {
-      s->obj.setPixelColor(i, c);
+      s->obj->setPixelColor(i, c);
     } else {
-      s->obj.setPixelColor(i, BLACK);
+      s->obj->setPixelColor(i, BLACK);
     }
   }
-  s->obj.show();
+  s->obj->show();
   if(s->m == 0) {
     s->j++;
   } else {
@@ -694,7 +696,7 @@ void stripKnightRider(strip *s, uint32_t c) {
   if(s->j <= 0) {
     s->m = 0;
   }
-  if(s->j >= s->obj.numPixels()) {
+  if(s->j >= s->obj->numPixels()) {
     s->m = 1;
   }
   //DEBUG_PRINT("stripKnightRider: done\n");
@@ -702,16 +704,16 @@ void stripKnightRider(strip *s, uint32_t c) {
 
 // Input a value 0 to 255 to get a color value.
 // The colours are a transition r - g - b - back to r.
-uint32_t Wheel(Adafruit_NeoPixel &strip, byte WheelPos) {
+uint32_t Wheel(Adafruit_NeoPixel *s, byte WheelPos) {
   WheelPos = 255 - WheelPos;
   if(WheelPos < 85) {
-    return strip.Color(255 - WheelPos * 3, 0, WheelPos * 3);
+    return s->Color(255 - WheelPos * 3, 0, WheelPos * 3);
   } else if(WheelPos < 170) {
     WheelPos -= 85;
-    return strip.Color(0, WheelPos * 3, 255 - WheelPos * 3);
+    return s->Color(0, WheelPos * 3, 255 - WheelPos * 3);
   } else {
     WheelPos -= 170;
-    return strip.Color(WheelPos * 3, 255 - WheelPos * 3, 0);
+    return s->Color(WheelPos * 3, 255 - WheelPos * 3, 0);
   }
 }
 
@@ -722,14 +724,14 @@ bool stripGetState(strip *s) {
   DEBUG_PRINT(")\n");
   bool state = false;
   uint16_t i = 0;
-  while(!state && i < s->obj.numPixels()) {
-    if(s->obj.getPixelColor(i) == 0) {
+  while(!state && i < s->obj->numPixels()) {
+    if(s->obj->getPixelColor(i) == 0) {
       i++;
     } else {
       DEBUG_PRINT("stripGetState (");
       DEBUG_PRINT(i);
       DEBUG_PRINT("): ");
-      DEBUG_PRINT(s->obj.getPixelColor(i));
+      DEBUG_PRINT(s->obj->getPixelColor(i));
       DEBUG_PRINT("\n");
       state = true;
     }
