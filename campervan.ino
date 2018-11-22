@@ -1,4 +1,5 @@
 #include <AceButton.h>
+#include "Led.h"
 #include <Adafruit_NeoPixel.h>
 #include "Color_Definitions.h"
 #include <TMP36.h>
@@ -46,16 +47,9 @@ void handleStripEvent(AceButton*, uint8_t, uint8_t);
 
 // LED Spots 1, 2, 3 (front -> back)
 #define LED1_PIN 21
-int led1Val = 0;
-int led1Val2 = led1Val;
-
 #define LED2_PIN 22
-int led2Val = 0;
-int led2Val2 = led2Val;
-
 #define LED3_PIN 23
-int led3Val = 0;
-int led3Val2 = led3Val;
+Led led1, led2, led3;
 
 // Number of ledstrips
 #define LEDSTRIPS 2
@@ -154,16 +148,11 @@ void setup() {
   btnDS2.init(BUTTON_DS2_PIN, HIGH, 0);
   pinMode(BUTTON_CS2_PIN, INPUT_PULLUP);
   btnCS2.init(BUTTON_CS2_PIN, HIGH, 1);
-  
-  // Initialize LED Spots
-  pinMode(LED1_PIN, OUTPUT);
-  digitalWrite(LED1_PIN, LOW);
-  
-  pinMode(LED2_PIN, OUTPUT);
-  digitalWrite(LED2_PIN, LOW);
-  
-  pinMode(LED3_PIN, OUTPUT);
-  digitalWrite(LED3_PIN, LOW);
+
+   // Initialize LEDs
+  led1.attach(LED1_PIN);
+  led2.attach(LED2_PIN);
+  led3.attach(LED3_PIN);
 
   // Initialize LED strips
   strips[0].name = "Strip1 (Driver)";
@@ -225,45 +214,6 @@ void loop() {
   btnDS2.check();
   btnCS1.check();
   btnCS2.check();
-
-  // Handle LED1
-  if(led1Val != led1Val2) {
-    if(led1Val == 0) {
-      // Turn off the LED
-      //digitalWrite(LED1_PIN, LOW);
-      analogWrite(LED1_PIN, LOW);
-    } else {
-      // Turn on the LED and dimm
-      analogWrite(LED1_PIN, led1Val);
-    }
-  }
-  led1Val2 = led1Val;
-
-  // Handle LED2
-  if(led2Val != led2Val2) {
-    if(led2Val == 0) {
-      // Turn off the LED
-      //digitalWrite(LED2_PIN, LOW);
-      analogWrite(LED2_PIN, LOW);
-    } else {
-      // Turn on the LED and dimm
-      analogWrite(LED2_PIN, led2Val);
-    }
-  }
-  led2Val2 = led2Val;
-
-  // Handle LED3
-  if(led3Val != led3Val2) {
-    if(led3Val == 0) {
-      // Turn off the LED
-      //digitalWrite(LED3_PIN, LOW);
-      analogWrite(LED3_PIN, LOW);
-    } else {
-      // Turn on the LED and dimm
-      analogWrite(LED3_PIN, led3Val);
-    }
-  }
-  led3Val2 = led3Val;
 
   // Handle LED strips
   for(unsigned int i = 0; i < LEDSTRIPS; i++) {
@@ -342,6 +292,8 @@ void processHelp() {
 void processStatus(String v1, String v2) {
   DEBUG_PRINT("processStatus(");
   DEBUG_PRINT(v1);
+  DEBUG_PRINT(", ");
+  DEBUG_PRINT(v2);
   DEBUG_PRINT(")\n");
 
   if(v1.equals("led")) {
@@ -350,23 +302,24 @@ void processStatus(String v1, String v2) {
       DEBUG_PRINT(v2);
       DEBUG_PRINT(": ");
       if(v2.equalsIgnoreCase("1")) {
-        DEBUG_PRINT(led1Val);
+        DEBUG_PRINT(led1.getBrightness());
       } else if(v2.equalsIgnoreCase("2")) {
-        DEBUG_PRINT(led2Val);
+        DEBUG_PRINT(led2.getBrightness());
       } else if(v2.equalsIgnoreCase("3")) {
-        DEBUG_PRINT(led3Val);
+        DEBUG_PRINT(led3.getBrightness());
       } else {
         DEBUG_PRINT(0);
       }
     } else {
       DEBUG_PRINT("led1: ");
-      DEBUG_PRINT(led1Val);
+      DEBUG_PRINT(led1.getBrightness());
       DEBUG_PRINT("\n");
       DEBUG_PRINT("led2: ");
-      DEBUG_PRINT(led2Val);
+      DEBUG_PRINT(led2.getBrightness());
       DEBUG_PRINT("\n");
       DEBUG_PRINT("led3: ");
-      DEBUG_PRINT(led3Val);
+      DEBUG_PRINT(led3.getBrightness());
+      DEBUG_PRINT("\n");
     }
     DEBUG_PRINT("\n");
   } else if(v1.equals("strip")) {
@@ -399,13 +352,13 @@ void processStatus(String v1, String v2) {
     DEBUG_PRINT("\n");
   } else {
     DEBUG_PRINT("led1: ");
-    DEBUG_PRINT(led1Val);
+    DEBUG_PRINT(led1.getBrightness());
     DEBUG_PRINT("\n");
     DEBUG_PRINT("led2: ");
-    DEBUG_PRINT(led2Val);
+    DEBUG_PRINT(led2.getBrightness());
     DEBUG_PRINT("\n");
     DEBUG_PRINT("led3: ");
-    DEBUG_PRINT(led3Val);
+    DEBUG_PRINT(led3.getBrightness());
     DEBUG_PRINT("\n");
     DEBUG_PRINT("strip1: ");
     DEBUG_PRINT(stripGetState(&strips[0]));
@@ -438,18 +391,18 @@ void processLed(String v1, String v2) {
   }
   if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2") || v1.equalsIgnoreCase("3")) {
     if(v1.equalsIgnoreCase("1")) {
-      led1Val = i1;
+      led1.on(i1);
     } else if(v1.equalsIgnoreCase("2")) {
-      led2Val = i1;
+      led2.on(i1);
     } else if(v1.equalsIgnoreCase("3")) {
-      led3Val = i1;
+      led3.on(i1);
     } else {
       // nothing
     }
   } else {
-    led1Val = i1;
-    led2Val = i1;
-    led3Val = i1;
+    led1.on(i1);
+    led2.on(i1);
+    led3.on(i1);
   }
 }
 
@@ -560,49 +513,31 @@ void handleSystemEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
 
   switch (eventType) {
     case AceButton::kEventClicked:
-      if(led1Val > 0) {
-        DEBUG_PRINT(button->getId());
-        DEBUG_PRINT(": tap event detected: ON ");
-        DEBUG_PRINT(round(led1Val * 100 / 254));
-        DEBUG_PRINT("% (");
-        DEBUG_PRINT(led1Val);
-        DEBUG_PRINT(") => OFF\n");
-        led1Val = 0;
-      } else {
-        led1Val = 254;
-        DEBUG_PRINT(button->getId());
-        DEBUG_PRINT(": tap event detected: OFF => ON 100% (");
-        DEBUG_PRINT(led1Val);
-        DEBUG_PRINT(")\n");
-      }
+      DEBUG_PRINT(button->getId());
+      DEBUG_PRINT(": kEventClicked event detected\n");
+      led1.toggle();
       break;
     case AceButton::kEventDoubleClicked:
-      if(led1Val > 0) {
-        DEBUG_PRINT(button->getId());
-        DEBUG_PRINT(": doubleTap event detected: ON ");
-        DEBUG_PRINT(round(led1Val * 100 / 254));
-        DEBUG_PRINT("% (");
-        DEBUG_PRINT(led1Val);
-        DEBUG_PRINT(") => ON ");
-        led1Val = max(0,round(led1Val - (254 * 0.2)));
-        DEBUG_PRINT(round(led1Val * 100 / 254));
-        DEBUG_PRINT("% (");
-        DEBUG_PRINT(led1Val);
-        DEBUG_PRINT(")\n");
+      DEBUG_PRINT(button->getId());
+      DEBUG_PRINT(": kEventDoubleClicked event detected\n");
+      if(led1.isOn()) {
+        led1.dimDown(round(255 * 0.2)); // dim down 20%
       } else {
-        led1Val = round(254 - (254 * 0.2));
-        DEBUG_PRINT(button->getId());
-        DEBUG_PRINT(": doubleTap event detected: OFF => ON 80% (");
-        DEBUG_PRINT(led1Val);
-        DEBUG_PRINT(")\n");
+       led1.on(round(255 * 0.8)); // switch on @ 80%
       }
       break;
     case AceButton::kEventLongPressed:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventLongPressed event detected: ALL OFF\n");
-      led1Val = 0;
-      led2Val = 0;
-      led3Val = 0;
+      DEBUG_PRINT(": kEventLongPressed event detected\n");
+      if(led1.isOn() || led2.isOn() || led3.isOn()) {
+        led1.off();
+        led2.off();
+        led3.off();
+      } else {
+        led1.on();
+        led2.on();
+        led3.on();
+      }
       break;
   }
 }
@@ -618,49 +553,31 @@ void handleBedEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
 
   switch (eventType) {
     case AceButton::kEventClicked:
-      if(led3Val > 0) {
-        DEBUG_PRINT(button->getId());
-        DEBUG_PRINT(": kEventClicked event detected: ON ");
-        DEBUG_PRINT(round(led3Val * 100 / 254));
-        DEBUG_PRINT("% (");
-        DEBUG_PRINT(led3Val);
-        DEBUG_PRINT(") => OFF\n");
-        led3Val = 0;
-      } else {
-        led3Val = 254;
-        DEBUG_PRINT(button->getId());
-        DEBUG_PRINT(": tap event detected: OFF => ON 100% (");
-        DEBUG_PRINT(led3Val);
-        DEBUG_PRINT(")\n");
-      }
+      DEBUG_PRINT(button->getId());
+      DEBUG_PRINT(": kEventClicked event detected\n");
+      led3.toggle();
       break;
     case AceButton::kEventDoubleClicked:
-      if(led3Val > 0) {
-        DEBUG_PRINT(button->getId());
-        DEBUG_PRINT(": kEventDoubleClicked event detected: ON ");
-        DEBUG_PRINT(round(led3Val * 100 / 254));
-        DEBUG_PRINT("% (");
-        DEBUG_PRINT(led3Val);
-        DEBUG_PRINT(") => ON ");
-        led3Val = max(0,round(led3Val - (254 * 0.2)));
-        DEBUG_PRINT(round(led3Val * 100 / 254));
-        DEBUG_PRINT("% (");
-        DEBUG_PRINT(led3Val);
-        DEBUG_PRINT(")\n");
+      DEBUG_PRINT(button->getId());
+      DEBUG_PRINT(": kEventDoubleClicked event detected\n");
+      if(led3.isOn()) {
+        led3.dimDown(round(255 * 0.2)); // dim down 20%
       } else {
-        led3Val = round(254 - (254 * 0.2));
-        DEBUG_PRINT(button->getId());
-        DEBUG_PRINT(": doubleTap event detected: OFF => ON 80% (");
-        DEBUG_PRINT(led3Val);
-        DEBUG_PRINT(")\n");
+        led3.on(round(255 * 0.8)); // switch on @ 80%
       }
       break;
     case AceButton::kEventLongPressed:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventLongPressed event detected: ALL OFF\n");
-      led1Val = 0;
-      led2Val = 0;
-      led3Val = 0;
+      DEBUG_PRINT(": kEventLongPressed event detected\n");
+      if(led1.isOn() || led2.isOn() || led3.isOn()) {
+        led1.off();
+        led2.off();
+        led3.off();
+      } else {
+        led1.on();
+        led2.on();
+        led3.on();
+      }
       break;
   }
 }
