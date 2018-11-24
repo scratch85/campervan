@@ -1,12 +1,12 @@
 #include <AceButton.h>
 #include "Led.h"
-#include <Adafruit_NeoPixel.h>
+#include <WS2812FX.h>
 #include "Color_Definitions.h"
 #include <TMP36.h>
 using namespace ace_button;
 
 // Debugging Serial & Serial2 (BLE) 
-#define DEBUG
+//#define DEBUG
 #define ENABLE_BLE
 #define DEBUG_BLE
 
@@ -54,34 +54,20 @@ void handleStripEvent(AceButton*, uint8_t, uint8_t);
 #define LED3_PIN 23
 Led led1, led2, led3;
 
-// Number of ledstrips
-#define LEDSTRIPS 2
-
 // LED Strips 1, 2 (Driver, Co-Driver)
 #define LEDSTRIP1_PIN 4
 #define LEDSTRIP2_PIN 3
 
 // How many NeoPixels do the srip have?
-#define LEDSTRIP1_PIXELS 60
-#define LEDSTRIP2_PIXELS 60
+#define LEDSTRIP1_PIXELS 10
+#define LEDSTRIP2_PIXELS 10
 
-// Maximum brightness
+// Brightness & Speed
 #define LEDSTRIP_BRIGHTNESS 32
+#define LEDSTRIP_SPEED 2000
 
-// The struct
-struct strip {
-  String name;
-	unsigned int effect = 0;
-	unsigned long lastUpdate = 0;
-  unsigned long updateInterval = 50;
-  unsigned int j = 0;
-  unsigned int m = 0;
-  Adafruit_NeoPixel *obj;
-};
-
-strip strips[LEDSTRIPS];
-Adafruit_NeoPixel strip1 = Adafruit_NeoPixel(LEDSTRIP1_PIXELS, LEDSTRIP1_PIN, NEO_GRBW + NEO_KHZ800);
-Adafruit_NeoPixel strip2 = Adafruit_NeoPixel(LEDSTRIP2_PIXELS, LEDSTRIP2_PIN, NEO_GRBW + NEO_KHZ800);
+WS2812FX strip1 = WS2812FX(LEDSTRIP1_PIXELS, LEDSTRIP1_PIN, NEO_GRBW + NEO_KHZ800);
+WS2812FX strip2 = WS2812FX(LEDSTRIP2_PIXELS, LEDSTRIP2_PIN, NEO_GRBW + NEO_KHZ800);
 
 // Temperatur TMP36
 #define TMP36_PIN A0
@@ -160,23 +146,15 @@ void setup() {
   led3.attach(LED3_PIN);
 
   // Initialize LED strips
-  strips[0].name = "Strip1 (Driver)";
-  strips[0].obj = &strip1;
-  strips[1].name = "Strip2 (Co-Driver)";
-  strips[1].obj = &strip1;
-  DEBUG_PRINT("Ledstrips:\n");
-  for(unsigned int i = 0; i < LEDSTRIPS; i++) {
-    DEBUG_PRINT(i);
-    DEBUG_PRINT(" on Pin: ");
-    DEBUG_PRINT(strips[i].obj->getPin());
-    DEBUG_PRINT("\n");
-	  strips[i].effect = 0;
-	  strips[i].lastUpdate = 0;
-    strips[i].updateInterval = 50;
-    strips[i].obj->begin();
-    strips[i].obj->setBrightness(LEDSTRIP_BRIGHTNESS);
-    strips[i].obj->show(); // Initialize all pixels to 'off'
-  }
+  strip1.init();
+  strip1.setBrightness(LEDSTRIP_BRIGHTNESS);
+  strip1.setSpeed(LEDSTRIP_SPEED);
+  strip1.stop();
+
+  strip2.init();
+  strip2.setBrightness(LEDSTRIP_BRIGHTNESS);
+  strip2.setSpeed(LEDSTRIP_SPEED);
+  strip2.stop();
 }
 
 void loop() {
@@ -230,28 +208,9 @@ void loop() {
   btnCS1.check();
   btnCS2.check();
 
-  // Handle LED strips
-  for(unsigned int i = 0; i < LEDSTRIPS; i++) {
-    // Check if an update is needed
-    if(millis() - strips[i].lastUpdate >= strips[i].updateInterval) {
-      switch(strips[i].effect) {
-        case 0:
-          // do nothing
-          break;
-        case 1:
-          stripRainbow(&strips[i]);
-          break;
-        case 2:
-          stripRainbowCycle(&strips[i]);
-          break;
-        case 3:
-          stripKnightRider(&strips[i], RED);
-          break;
-      }
-      strips[i].lastUpdate = millis();
-    }
-  }
-  delay(10);
+  // The strips
+  strip1.service();
+  strip2.service();
 }
 
 void processSerialInput(String data) {
@@ -261,7 +220,7 @@ void processSerialInput(String data) {
   DEBUG_PRINT(data);
   DEBUG_PRINT("\n");
 
-  if(data.equalsIgnoreCase("help")) {
+  if(data.equals("help")) {
     processHelp();
   } else if(data.startsWith("status")) {
     processStatus(split(data,' ',1), split(data,' ',2));
@@ -305,6 +264,9 @@ void processHelp() {
 }
 
 void processStatus(String v1, String v2) {
+  v1.toLowerCase();
+  v2.toLowerCase();
+  
   DEBUG_PRINT("processStatus(");
   DEBUG_PRINT(v1);
   DEBUG_PRINT(", ");
@@ -312,15 +274,15 @@ void processStatus(String v1, String v2) {
   DEBUG_PRINT(")\n");
 
   if(v1.equals("led")) {
-    if(v2.equalsIgnoreCase("1") || v2.equalsIgnoreCase("2") || v2.equalsIgnoreCase("3")) {
+    if(v2.equals("1") || v2.equals("2") || v2.equals("3")) {
       DEBUG_PRINT("led");
       DEBUG_PRINT(v2);
       DEBUG_PRINT(": ");
-      if(v2.equalsIgnoreCase("1")) {
+      if(v2.equals("1")) {
         DEBUG_PRINT(led1.getBrightness());
-      } else if(v2.equalsIgnoreCase("2")) {
+      } else if(v2.equals("2")) {
         DEBUG_PRINT(led2.getBrightness());
-      } else if(v2.equalsIgnoreCase("3")) {
+      } else if(v2.equals("3")) {
         DEBUG_PRINT(led3.getBrightness());
       } else {
         DEBUG_PRINT(0);
@@ -338,28 +300,28 @@ void processStatus(String v1, String v2) {
     }
     DEBUG_PRINT("\n");
   } else if(v1.equals("strip")) {
-    if(v2.equalsIgnoreCase("1") || v2.equalsIgnoreCase("2")) {
+    if(v2.equals("1") || v2.equals("2")) {
       DEBUG_PRINT("strip");
       DEBUG_PRINT(v2);
       DEBUG_PRINT(": ");
-      if(v2.equalsIgnoreCase("1")) {
-        DEBUG_PRINT(stripGetState(&strips[0]));
-      } else if(v2.equalsIgnoreCase("2")) {
-        DEBUG_PRINT(stripGetState(&strips[1]));
+      if(v2.equals("1")) {
+        DEBUG_PRINT(strip1.isRunning());
+      } else if(v2.equals("2")) {
+        DEBUG_PRINT(strip2.isRunning());
       } else {
         DEBUG_PRINT(0);
       }
     } else {
       DEBUG_PRINT("strip1: ");
-      DEBUG_PRINT(stripGetState(&strips[0]));
+      DEBUG_PRINT(strip1.isRunning());
       DEBUG_PRINT("\n");
       DEBUG_PRINT("strip2: ");
-      DEBUG_PRINT(stripGetState(&strips[1]));
+      DEBUG_PRINT(strip2.isRunning());
     }
     DEBUG_PRINT("\n");
   } else if(v1.equals("tmp")) {
     DEBUG_PRINT("temperature: ");
-    if(v2.equalsIgnoreCase("F")) {
+    if(v2.equals("F")) {
       DEBUG_PRINT(String(tmp36.getTempF()));
     } else {
       DEBUG_PRINT(String(tmp36.getTempC()));
@@ -376,10 +338,10 @@ void processStatus(String v1, String v2) {
     DEBUG_PRINT(led3.getBrightness());
     DEBUG_PRINT("\n");
     DEBUG_PRINT("strip1: ");
-    DEBUG_PRINT(stripGetState(&strips[0]));
+    DEBUG_PRINT(strip1.isRunning());
     DEBUG_PRINT("\n");
     DEBUG_PRINT("strip2: ");
-    DEBUG_PRINT(stripGetState(&strips[1]));
+    DEBUG_PRINT(strip2.isRunning());
     DEBUG_PRINT("\n");
     DEBUG_PRINT("temperature: ");
     DEBUG_PRINT(String(tmp36.getTempC()));
@@ -388,6 +350,9 @@ void processStatus(String v1, String v2) {
 }
 
 void processLed(String v1, String v2) {
+  v1.toLowerCase();
+  v2.toLowerCase();
+  
   DEBUG_PRINT("processLed(");
   DEBUG_PRINT(v1);
   DEBUG_PRINT(", ");
@@ -395,21 +360,21 @@ void processLed(String v1, String v2) {
   DEBUG_PRINT(")\n");
 
   uint32_t i1;
-  if(v2.equalsIgnoreCase("on")) {
+  if(v2.equals("on")) {
     i1 = 255;
-  } else if(v2.equalsIgnoreCase("off")) {
+  } else if(v2.equals("off")) {
     i1 = 0;
   } else if(v2.endsWith("%")) {
     i1 = map(sanitizeValue(v2.remove(v2.length() - 1), 0, 0, 100), 0, 100, 0, 255);
   } else {
     i1 = sanitizeValue(v2, 255, 0, 255);
   }
-  if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2") || v1.equalsIgnoreCase("3")) {
-    if(v1.equalsIgnoreCase("1")) {
+  if(v1.equals("1") || v1.equals("2") || v1.equals("3")) {
+    if(v1.equals("1")) {
       led1.on(i1);
-    } else if(v1.equalsIgnoreCase("2")) {
+    } else if(v1.equals("2")) {
       led2.on(i1);
-    } else if(v1.equalsIgnoreCase("3")) {
+    } else if(v1.equals("3")) {
       led3.on(i1);
     } else {
       // nothing
@@ -422,6 +387,11 @@ void processLed(String v1, String v2) {
 }
 
 void processStrip(String v1, String v2, String v3, String v4) {
+  v1.toLowerCase();
+  v2.toLowerCase();
+  v3.toLowerCase();
+  v4.toLowerCase();
+  
   DEBUG_PRINT("processStrip(");
   DEBUG_PRINT(v1);
   DEBUG_PRINT(", ");
@@ -433,52 +403,60 @@ void processStrip(String v1, String v2, String v3, String v4) {
   DEBUG_PRINT(")\n");
 
   uint32_t i1, i2;
-  if(v2.equalsIgnoreCase("on")) {
-    i1 = WHITE_LED;
-  } else if(v2.equalsIgnoreCase("off")) {
-    i1 = BLACK;
-  } else if(v2.equalsIgnoreCase("effect") || v2.equalsIgnoreCase("e")) {
-    v2 = "e";
-    if(v3.equalsIgnoreCase("rainbow") || v3.equalsIgnoreCase("rb") || v3.equalsIgnoreCase("1")) {
-      i1 = 1;
-    } else if(v3.equalsIgnoreCase("rainbowcycle") || v3.equalsIgnoreCase("rbc") || v3.equalsIgnoreCase("2")) {
-      i1 = 2;
-    } else if(v3.equalsIgnoreCase("knightrider") || v3.equalsIgnoreCase("kr") || v3.equalsIgnoreCase("3")) {
-      i1 = 3;
-      i2 = getColorFromString(v4);
+  if(v2.equals("on")) {
+    i1 = FX_MODE_STATIC;
+    i2 = WHITE_LED;
+  } else if(v2.equals("off")) {
+    i1 = FX_MODE_STATIC;
+    i2 = BLACK;
+  } else if(v2.equals("effect") || v2.equals("e")) {
+    if(v3.equals("rainbow") || v3.equals("rb")) {
+      i1 = FX_MODE_RAINBOW;
+      i2 = WHITE_LED;
+    } else if(v3.equals("rainbowcycle") || v3.equals("rbc")) {
+      i1 = FX_MODE_RAINBOW_CYCLE;
+      i2 = WHITE_LED;
+    } else if(v3.equals("knightrider") || v3.equals("kr") || v3.equals("larsonscanner") || v3.equals("ls")) {
+      i1 = FX_MODE_LARSON_SCANNER;
+      i2 = getColorFromString(v4, RED);
     } else {
-      i1 = 0;
+      i1 = sanitizeValue(v3, 0, 0, strip1.getModeCount());
+      i2 = getColorFromString(v4, RED);
     }
   } else {
-    i1 = getColorFromString(v2);
+    i1 = FX_MODE_STATIC;
+    i2 = getColorFromString(v2, 0);
   }
-  if(v1.equalsIgnoreCase("1") || v1.equalsIgnoreCase("2")) {
-    if(v1.equalsIgnoreCase("1")) {
-      if(v2.equalsIgnoreCase("e")) {
-        strips[0].effect = i1;
+
+  if(v1.equals("1") || v1.equals("2")) {
+    if(v1.equals("1")) {
+      if(i2 == BLACK) {
+        strip1.stop();
       } else {
-        stripSetColor(&strips[0], i1);
-        strips[0].effect = 0;
+        strip1.setColor(i2);
+        strip1.setMode(i1);
+        strip1.start();
       }
-    } else if(v1.equalsIgnoreCase("2")) {
-      if(v2.equalsIgnoreCase("e")) {
-        strips[1].effect = i1;
+    } else if(v1.equals("2")) {
+      if(i2 == BLACK) {
+        strip2.stop();
       } else {
-        stripSetColor(&strips[1], i1);
-        strips[1].effect = 0;
+        strip2.setColor(i2);
+        strip2.setMode(i1);
+        strip2.start();
       }
-    } else {
-      // nothing
     }
   } else {
-    if(v2.equalsIgnoreCase("e")) {
-      strips[0].effect = i1;
-      strips[1].effect = i1;
+    if(i2 == BLACK) {
+      strip1.stop();
+      strip2.stop();
     } else {
-      stripSetColor(&strips[0], i1);
-      strips[0].effect = 0;
-      stripSetColor(&strips[1], i1);
-      strips[1].effect = 0;
+      strip1.setColor(i2);
+      strip2.setColor(i2);
+      strip1.setMode(i1);
+      strip2.setMode(i1);
+      strip1.start();
+      strip2.start();
     }
   }
 }
@@ -508,13 +486,14 @@ uint32_t sanitizeValue(String data, uint32_t def, uint32_t vmin, uint32_t vmax) 
   return tmp;
 }
 
-uint32_t getColorFromString(String c) {
-  if(c.equalsIgnoreCase("black") || c.equalsIgnoreCase("bl")) return BLACK;
-  if(c.equalsIgnoreCase("blue")  || c.equalsIgnoreCase("b"))  return BLUE;
-  if(c.equalsIgnoreCase("green") || c.equalsIgnoreCase("g"))  return GREEN;
-  if(c.equalsIgnoreCase("red")   || c.equalsIgnoreCase("r"))  return RED;
-  if(c.equalsIgnoreCase("white") || c.equalsIgnoreCase("w"))  return WHITE_LED;
-  return sanitizeValue(c, 0, 0, 4294967295);
+uint32_t getColorFromString(String c, uint32_t def) {
+  c.toLowerCase();
+  if(c.equals("black") || c.equals("bl")) return BLACK;
+  if(c.equals("blue")  || c.equals("b"))  return BLUE;
+  if(c.equals("green") || c.equals("g"))  return GREEN;
+  if(c.equals("red")   || c.equals("r"))  return RED;
+  if(c.equals("white") || c.equals("w"))  return WHITE_LED;
+  return sanitizeValue(c, def, 0, 4294967295);
 }
 
 void handleSystemEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
@@ -610,147 +589,39 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
     case AceButton::kEventClicked:
       DEBUG_PRINT(button->getId());
       DEBUG_PRINT(": kEventClicked event detected\n");
-      if(strips[button->getId()].effect > 0 || !stripGetState(&strips[button->getId()])) {
-        stripSetColor(&strips[button->getId()], WHITE_LED);
-        strips[button->getId()].effect = 0;
-      } else {
-        stripSetColor(&strips[button->getId()], BLACK);
-        strips[button->getId()].effect = 0;
+      switch (button->getId()) {
+        case 0:
+          if(strip1.isRunning()) {
+            strip1.stop();
+          } else {
+            strip1.setColor(WHITE_LED);
+            strip1.setMode(FX_MODE_STATIC);
+          }
+          break;
+        case 1:
+          if(strip2.isRunning()) {
+            strip2.stop();
+          } else {
+            strip2.setColor(WHITE_LED);
+            strip2.setMode(FX_MODE_STATIC);
+          }
+          break;
       }
       break;
     case AceButton::kEventDoubleClicked:
       DEBUG_PRINT(button->getId());
       DEBUG_PRINT(": kEventDoubleClicked event detected\n");
-      strips[button->getId()].effect++;
+      /*strips[button->getId()].effect++;
       if(strips[button->getId()].effect > 2) {
         stripSetColor(&strips[button->getId()], BLACK);
         strips[button->getId()].effect = 0;
-      }
+      }*/
       break;
     case AceButton::kEventLongPressed:
       DEBUG_PRINT(button->getId());
       DEBUG_PRINT(": kEventLongPressed event detected: ALL OFF\n");
-      stripSetColor(&strips[0], BLACK);
-      strips[0].effect = 0;
-      stripSetColor(&strips[1], BLACK);
-      strips[1].effect = 0;
+      strip1.stop();
+      strip2.stop();
       break;
   }
-}
-
-// Set all LEDs of the strip to the same color
-void stripSetColor(strip *s, uint32_t c) {
-  //DEBUG_PRINT("stripSetColor (");
-  //DEBUG_PRINT(s->name);
-  //DEBUG_PRINT(", ");
-  //DEBUG_PRINT(c);
-  //DEBUG_PRINT(")");
-  for(uint16_t i = 0; i < s->obj->numPixels(); i++) {
-    //DEBUG_PRINT(i);
-    //DEBUG_PRINT(", ");
-    s->obj->setPixelColor(i, c);
-  }
-  s->obj->show();
-  //DEBUG_PRINT("stripSetColor: done\n");
-}
-
-void stripRainbow(strip *s) {
-  //DEBUG_PRINT("stripRainbow(");
-  //DEBUG_PRINT(s->name);
-  //DEBUG_PRINT(")\n");
-  for(uint16_t i = 0; i < s->obj->numPixels(); i++) {
-    s->obj->setPixelColor(i, Wheel(s->obj,(i + s->j) & 255));
-  }
-  s->obj->show();
-  s->j++;
-  if(s->j >= 256) {
-    s->j = 0;
-  }
-  //DEBUG_PRINT("stripRainbow: done\n");
-}
-
-// Slightly different, this makes the rainbow equally distributed throughout
-void stripRainbowCycle(strip *s) {
-  //DEBUG_PRINT("stripRainbowCycle(");
-  //DEBUG_PRINT(s->name);
-  //DEBUG_PRINT(")\n");
-  for(uint16_t i = 0; i < s->obj->numPixels(); i++) {
-    s->obj->setPixelColor(i, Wheel(s->obj,((i * 256 / s->obj->numPixels()) + s->j) & 255));
-  }
-  s->obj->show();
-  s->j++;
-  if(s->j >= 256) {
-    s->j = 0;
-  }
-  //DEBUG_PRINT("stripRainbowCycle: done\n");
-}
-
-void stripKnightRider(strip *s, uint32_t c) {
-  uint16_t x = 2;
-
-  //DEBUG_PRINT("stripKnightRider(");
-  //DEBUG_PRINT(s->name);
-  //DEBUG_PRINT(", ");
-  //DEBUG_PRINT(c);
-  //DEBUG_PRINT(")\n");
-  for(uint16_t i = 0; i < s->obj->numPixels(); i++) {
-    if(i >= s->j - x && i <= s->j + x) {
-      s->obj->setPixelColor(i, c);
-    } else {
-      s->obj->setPixelColor(i, BLACK);
-    }
-  }
-  s->obj->show();
-  if(s->m == 0) {
-    s->j++;
-  } else {
-    s->j--;
-  }
-  if(s->j <= 0) {
-    s->m = 0;
-  }
-  if(s->j >= s->obj->numPixels()) {
-    s->m = 1;
-  }
-  //DEBUG_PRINT("stripKnightRider: done\n");
-}
-
-// Input a value 0 to 255 to get a color value.
-// The colours are a transition r - g - b - back to r.
-uint32_t Wheel(Adafruit_NeoPixel *s, byte WheelPos) {
-  WheelPos = 255 - WheelPos;
-  if(WheelPos < 85) {
-    return s->Color(255 - WheelPos * 3, 0, WheelPos * 3);
-  } else if(WheelPos < 170) {
-    WheelPos -= 85;
-    return s->Color(0, WheelPos * 3, 255 - WheelPos * 3);
-  } else {
-    WheelPos -= 170;
-    return s->Color(WheelPos * 3, 255 - WheelPos * 3, 0);
-  }
-}
-
-// Returns true if at least one of the LEDs of the stip is glowing
-bool stripGetState(strip *s) {
-  //DEBUG_PRINT("stripGetState(");
-  //DEBUG_PRINT(s->name);
-  //DEBUG_PRINT(")\n");
-  bool state = false;
-  uint16_t i = 0;
-  while(!state && i < s->obj->numPixels()) {
-    if(s->obj->getPixelColor(i) == 0) {
-      i++;
-    } else {
-      //DEBUG_PRINT("stripGetState (");
-      //DEBUG_PRINT(i);
-      //DEBUG_PRINT("): ");
-      //DEBUG_PRINT(s->obj->getPixelColor(i));
-      //DEBUG_PRINT("\n");
-      state = true;
-    }
-  }
-  //DEBUG_PRINT("stripGetColor: state = ");
-  //if(state) { DEBUG_PRINT("true\n"); } else { DEBUG_PRINT("false\n"); }
-  //DEBUG_PRINT("stripGetColor: done\n");
-  return state;
 }
