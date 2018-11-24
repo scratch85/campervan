@@ -14,15 +14,15 @@ In early 2018 I started to convert a Ford Transit Custom (SWB) into a campervan.
 * 3x IRF3708 LogicLevel Mosfet
 
 ## TODOs
-* get second strip to work
+* ~~get second strip to work~~
 * implement way to synchronize strip effects
 * ~~process inputs with parameters from serial / ble~~
 * ~~helper function for inputs~~
-* store values in eeprom
-* get more effects ready
-* rewrite using fastled instead of neopixel lib
-* effects class?
-* effects state machine?
+* ~~store values in eeprom~~ (obsolete)
+* ~~get more effects ready~~
+* ~~rewrite using fastled instead of neopixel lib~~ (obsolete using [WS2812FX lib])
+* ~~effects class?~~ (obsolete using [WS2812FX lib])
+* ~~effects state machine?~~ (obsolete using [WS2812FX lib])
 
 ## Even more future improvements
 * rework layout on PermaProto
@@ -33,3 +33,4 @@ In early 2018 I started to convert a Ford Transit Custom (SWB) into a campervan.
 [Siegfar SF42049]: http://www.siegfar.de/produkt/sf42049/ "Siegfar SF42049 dimmable 12V leds"
 [SK6812 RGBWW LED strip]: http://www.btf-lighting.com/productshow.asp?ArticleID=0&id=164&cid=001
 [circuit]: campervan_circuit.png "Camper Van's Circuit made with Fritzing"
+[WS2812FX lib]: https://github.com/kitesurfer1404/WS2812FX "WS2812FX - More Blinken for your LEDs!"
