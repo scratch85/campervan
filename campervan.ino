@@ -6,7 +6,7 @@
 using namespace ace_button;
 
 // Debugging Serial & Serial2 (BLE) 
-//#define DEBUG
+#define DEBUG
 #define ENABLE_BLE
 #define DEBUG_BLE
 
@@ -24,6 +24,9 @@ using namespace ace_button;
 #define SERIAL_BAUDRATE 9600
 #define SERIAL1_TIMEOUT 100
 #define SERIAL2_TIMEOUT 100
+
+String strSerial = "";
+String strBluetooth = "";
 
 // Buttons
 ButtonConfig buttonConfigBed;
@@ -177,35 +180,45 @@ void setup() {
 }
 
 void loop() {
+  char in;
+
   // Read from Seriel2 (Bluetooth Low Energy (BLE) module) ...
 #ifdef ENABLE_BLE
-  String strBluetooth = "";
   if(Serial2.available() > 0) {
-    strBluetooth = Serial2.readString();
-  }
-  // ... and process inputs
-  strBluetooth.trim();
-  if(strBluetooth.length() > 0) {
-    DEBUG_PRINT("Bluetooth: ");
-    DEBUG_PRINT(strBluetooth);
-    DEBUG_PRINT("\n");
-    processSerialInput(strBluetooth);
+    in = Serial2.read();
+    if(in == char(10) || in == char(13) || in == NULL) {
+      // ... and process inputs
+      strBluetooth.trim();
+      if(strBluetooth.length() > 0) {
+        DEBUG_PRINT("Bluetooth: ");
+        DEBUG_PRINT(strBluetooth);
+        DEBUG_PRINT("\n");
+        processSerialInput(strBluetooth);
+        strBluetooth = "";
+      }
+    } else {
+      strBluetooth += in;
+    }
   }
 #endif
 
   // Read from Serial ...
 #ifdef DEBUG
-  String strSerial = "";
   if(Serial.available() > 0) {
-    strSerial = Serial.readString();
-  }
-  // ... and process inputs
-  strSerial.trim();
-  if(strSerial.length() > 0) {
-    DEBUG_PRINT("Serial: ");
-    DEBUG_PRINT(strSerial);
-    DEBUG_PRINT("\n");
-    processSerialInput(strSerial);
+    in = Serial.read();
+    if(in == char(10) || in == char(13) || in == NULL) {
+      // ... and process inputs
+      strSerial.trim();
+      if(strSerial.length() > 0) {
+        DEBUG_PRINT("Serial: ");
+        DEBUG_PRINT(strSerial);
+        DEBUG_PRINT("\n");
+        processSerialInput(strSerial);
+        strSerial = "";
+      }
+    } else {
+      strSerial += in;
+    }
   }
 #endif
 
