@@ -5,8 +5,10 @@
 #include <TMP36.h>
 using namespace ace_button;
 
+#define SIZE(x) sizeof(x) / sizeof(x[0]);
+
 // Debugging Serial & Serial2 (BLE) 
-//#define DEBUG
+#define DEBUG
 #define ENABLE_BLE
 #define DEBUG_BLE
 
@@ -69,6 +71,24 @@ Led led1, led2, led3;
 WS2812FX strip1 = WS2812FX(LEDSTRIP1_PIXELS, LEDSTRIP1_PIN, NEO_GRBW + NEO_KHZ800);
 WS2812FX strip2 = WS2812FX(LEDSTRIP2_PIXELS, LEDSTRIP2_PIN, NEO_GRBW + NEO_KHZ800);
 
+struct Effect {
+  uint8_t fx;
+  uint32_t c;
+  uint8_t b;
+  uint16_t s;
+};
+
+Effect effects1[] = { 
+  {FX_MODE_RAINBOW, 0, LEDSTRIP_BRIGHTNESS, 4000}, 
+  {FX_MODE_RAINBOW_CYCLE, 0, LEDSTRIP_BRIGHTNESS, 4000}, 
+  {FX_MODE_LARSON_SCANNER, GREEN, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}
+};
+Effect effects2[] = { 
+  {FX_MODE_RAINBOW, 0, LEDSTRIP_BRIGHTNESS, 4000}, 
+  {FX_MODE_RAINBOW_CYCLE, 0, LEDSTRIP_BRIGHTNESS, 4000}, 
+  {FX_MODE_LARSON_SCANNER, RED, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}
+};
+
 // Temperatur TMP36
 #define TMP36_PIN A0
 #define TMP36_VOLTAGE 3.3
@@ -87,25 +107,31 @@ void setup() {
   Serial.begin(SERIAL_BAUDRATE);
   Serial.setTimeout(SERIAL1_TIMEOUT);
   Serial.print("Serial (console) started at ");
-  Serial.print(SERIAL_BAUDRATE);
-  Serial.print("\nSketch:   ");
-  Serial.print(__FILE__);
-  Serial.print("\nUploaded: ");
-  Serial.print(__DATE__);
-  Serial.print("\n");
+  Serial.println(SERIAL_BAUDRATE);
+#ifdef DEBUG_BLE
+  Serial.print("Serial2 (BLE) started at ");
+  Serial.println(SERIAL_BAUDRATE);
+#endif
+  Serial.print("Sketch:   ");
+  Serial.println(__FILE__);
+  Serial.print("Uploaded: ");
+  Serial.println(__DATE__);
 #endif
 
   // Initialize serial2 - Bluetooth Low Energy (BLE)
 #ifdef DEBUG_BLE
   Serial2.begin(SERIAL_BAUDRATE);
   Serial2.setTimeout(SERIAL2_TIMEOUT);
-  DEBUG_PRINT("Serial2 (BLE) started at ");
-  DEBUG_PRINT(SERIAL_BAUDRATE);
-  Serial2.print("\nSketch:   ");
-  Serial2.print(__FILE__);
-  Serial2.print("\nUploaded: ");
-  Serial2.print(__DATE__);
-  Serial2.print("\n");
+#ifdef DEBUG
+  Serial2.print("Serial (console) started at ");
+  Serial2.println(SERIAL_BAUDRATE);
+#endif
+  Serial2.print("Serial2 (BLE) started at ");
+  Serial2.println(SERIAL_BAUDRATE);  
+  Serial2.print("Sketch:   ");
+  Serial2.println(__FILE__);
+  Serial2.print("Uploaded: ");
+  Serial2.println(__DATE__);
 #endif
 
   // Initialize buttons
@@ -114,31 +140,34 @@ void setup() {
   systemButtonConfig->setFeature(ButtonConfig::kFeatureClick);
   systemButtonConfig->setFeature(ButtonConfig::kFeatureDoubleClick);
   systemButtonConfig->setFeature(ButtonConfig::kFeatureLongPress);
+  systemButtonConfig->setFeature(ButtonConfig::kFeatureSuppressAll);
 
   buttonConfigBed.setEventHandler(handleBedEvent);
   buttonConfigBed.setFeature(ButtonConfig::kFeatureClick);
   buttonConfigBed.setFeature(ButtonConfig::kFeatureDoubleClick);
   buttonConfigBed.setFeature(ButtonConfig::kFeatureLongPress);
+  buttonConfigBed.setFeature(ButtonConfig::kFeatureSuppressAll);
   
   buttonConfigStrip.setEventHandler(handleStripEvent);
   buttonConfigStrip.setFeature(ButtonConfig::kFeatureClick);
   buttonConfigStrip.setFeature(ButtonConfig::kFeatureDoubleClick);
   buttonConfigStrip.setFeature(ButtonConfig::kFeatureLongPress);
+  buttonConfigStrip.setFeature(ButtonConfig::kFeatureSuppressAll);
 
   pinMode(BUTTON_SD1_PIN, INPUT_PULLUP);
-  btnSD1.init(BUTTON_SD1_PIN, HIGH, 0);
+  btnSD1.init(BUTTON_SD1_PIN, LOW, 0);
   pinMode(BUTTON_SD2_PIN, INPUT_PULLUP);
-  btnSD2.init(BUTTON_SD2_PIN, HIGH, 1);
+  btnSD2.init(BUTTON_SD2_PIN, LOW, 1);
   
   pinMode(BUTTON_DS1_PIN, INPUT_PULLUP);
-  btnDS1.init(BUTTON_DS1_PIN, HIGH, 0);
+  btnDS1.init(BUTTON_DS1_PIN, LOW, 0);
   pinMode(BUTTON_CS1_PIN, INPUT_PULLUP);
-  btnCS1.init(BUTTON_CS1_PIN, HIGH, 1);
+  btnCS1.init(BUTTON_CS1_PIN, LOW, 1);
 
   pinMode(BUTTON_DS2_PIN, INPUT_PULLUP);
-  btnDS2.init(BUTTON_DS2_PIN, HIGH, 0);
+  btnDS2.init(BUTTON_DS2_PIN, LOW, 0);
   pinMode(BUTTON_CS2_PIN, INPUT_PULLUP);
-  btnCS2.init(BUTTON_CS2_PIN, HIGH, 1);
+  btnCS2.init(BUTTON_CS2_PIN, LOW, 1);
 
    // Initialize LEDs
   led1.attach(LED1_PIN);
@@ -475,6 +504,13 @@ String split(String data, char separator, int index) {
   return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
+uint8_t getIndex(Effect e[], uint8_t s, uint8_t value) {
+  for(uint8_t i = 0; i < s; i++) {
+    if(e[i].fx == value) return i + 1;
+  }
+  return 0;
+}
+
 uint32_t sanitizeValue(String data, uint32_t def, uint32_t vmin, uint32_t vmax) {
   uint32_t tmp;
   if(data.length() > 0) {
@@ -497,13 +533,14 @@ uint32_t getColorFromString(String c, uint32_t def) {
 }
 
 void handleSystemEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
-  // Print out a message for all events.
+  /*
   DEBUG_PRINT(F("handleSystemEvent(): eventType: "));
   DEBUG_PRINT(eventType);
   DEBUG_PRINT("\n");
   DEBUG_PRINT(F("; buttonState: "));
   DEBUG_PRINT(buttonState);
   DEBUG_PRINT("\n");
+  */
 
   switch (eventType) {
     case AceButton::kEventClicked:
@@ -537,13 +574,15 @@ void handleSystemEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
 }
 
 void handleBedEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
-  // Print out a message for all events.
-  DEBUG_PRINT(F("handleBedEvent(): eventType: "));
+  /*
+  DEBUG_PRINT(F("handleBedEvent( buttonId: "));
+  DEBUG_PRINT(button->getId());
+  DEBUG_PRINT(F(", eventType: "));
   DEBUG_PRINT(eventType);
-  DEBUG_PRINT("\n");
-  DEBUG_PRINT(F("; buttonState: "));
+  DEBUG_PRINT(F(", buttonState: "));
   DEBUG_PRINT(buttonState);
-  DEBUG_PRINT("\n");
+  DEBUG_PRINT(F("\n"));
+  */
 
   switch (eventType) {
     case AceButton::kEventClicked:
@@ -577,13 +616,17 @@ void handleBedEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
 }
 
 void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
-  // Print out a message for all events.
-  DEBUG_PRINT(F("handleStripEvent(): eventType: "));
+  /*
+  DEBUG_PRINT(F("handleStripEvent( buttonId: "));
+  DEBUG_PRINT(button->getId());
+  DEBUG_PRINT(F(", eventType: "));
   DEBUG_PRINT(eventType);
-  DEBUG_PRINT("\n");
-  DEBUG_PRINT(F("; buttonState: "));
+  DEBUG_PRINT(F(", buttonState: "));
   DEBUG_PRINT(buttonState);
-  DEBUG_PRINT("\n");
+  DEBUG_PRINT(F("\n"));
+  */
+
+  uint8_t e, s;
 
   switch (eventType) {
     case AceButton::kEventClicked:
@@ -596,6 +639,7 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
           } else {
             strip1.setColor(WHITE_LED);
             strip1.setMode(FX_MODE_STATIC);
+            strip1.start();
           }
           break;
         case 1:
@@ -604,6 +648,7 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
           } else {
             strip2.setColor(WHITE_LED);
             strip2.setMode(FX_MODE_STATIC);
+            strip2.start();
           }
           break;
       }
@@ -611,17 +656,64 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
     case AceButton::kEventDoubleClicked:
       DEBUG_PRINT(button->getId());
       DEBUG_PRINT(": kEventDoubleClicked event detected\n");
-      /*strips[button->getId()].effect++;
-      if(strips[button->getId()].effect > 2) {
-        stripSetColor(&strips[button->getId()], BLACK);
-        strips[button->getId()].effect = 0;
-      }*/
+      switch (button->getId()) {
+        case 0:
+          s = SIZE(effects1);
+          e = getIndex(effects1, s, strip1.getMode());
+          if(e >= s) {
+            strip1.setMode(0);
+            strip1.stop();
+          } else {
+            strip1.setMode(effects1[e].fx);
+            strip1.setColor(effects1[e].c);
+            strip1.setBrightness(effects1[e].b);
+            strip1.setSpeed(effects1[e].s);
+            strip1.start();
+          }
+          break;
+        case 1:
+          s = SIZE(effects2);
+          e = getIndex(effects2, s, strip2.getMode());
+          if(e >= s) {
+            strip2.setMode(0);
+            strip2.stop();
+          } else {
+            strip2.setMode(effects1[e].fx);
+            strip2.setColor(effects1[e].c);
+            strip2.setBrightness(effects1[e].b);
+            strip2.setSpeed(effects1[e].s);
+            strip2.start();
+          }
+          break;
+      }
       break;
     case AceButton::kEventLongPressed:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventLongPressed event detected: ALL OFF\n");
-      strip1.stop();
-      strip2.stop();
+      DEBUG_PRINT(": kEventLongPressed event detected\n");
+      switch (button->getId()) {
+        case 0:
+          // Sync 1 => 2
+          strip2.setMode(strip1.getMode());
+          strip2.setColor(strip1.getColor());
+          strip2.setBrightness(strip1.getBrightness());
+          strip2.setSpeed(strip1.getSpeed());
+          strip1.resetSegmentRuntimes();
+          strip2.resetSegmentRuntimes();
+          strip1.start();
+          strip2.start();
+          break;
+        case 1:
+          // Sync 2 => 1
+          strip1.setMode(strip2.getMode());
+          strip1.setColor(strip2.getColor());
+          strip1.setBrightness(strip2.getBrightness());
+          strip1.setSpeed(strip2.getSpeed());
+          strip1.resetSegmentRuntimes();
+          strip2.resetSegmentRuntimes();
+          strip1.start();
+          strip2.start();
+          break;
+      }
       break;
   }
 }

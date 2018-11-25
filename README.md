@@ -15,7 +15,7 @@ In early 2018 I started to convert a Ford Transit Custom (SWB) into a campervan.
 
 ## TODOs
 * ~~get second strip to work~~
-* implement way to synchronize strip effects
+* ~~implement way to synchronize strip effects~~
 * ~~process inputs with parameters from serial / ble~~
 * ~~helper function for inputs~~
 * ~~store values in eeprom~~ (obsolete)
@@ -23,6 +23,9 @@ In early 2018 I started to convert a Ford Transit Custom (SWB) into a campervan.
 * ~~rewrite using fastled instead of neopixel lib~~ (obsolete using [WS2812FX lib])
 * ~~effects class?~~ (obsolete using [WS2812FX lib])
 * ~~effects state machine?~~ (obsolete using [WS2812FX lib])
+* consider [OneButton lib]
+* effects switcher class
+* code cleanup
 
 ## Even more future improvements
 * rework layout on PermaProto
@@ -34,3 +37,4 @@ In early 2018 I started to convert a Ford Transit Custom (SWB) into a campervan.
 [SK6812 RGBWW LED strip]: http://www.btf-lighting.com/productshow.asp?ArticleID=0&id=164&cid=001
 [circuit]: campervan_circuit.png "Camper Van's Circuit made with Fritzing"
 [WS2812FX lib]: https://github.com/kitesurfer1404/WS2812FX "WS2812FX - More Blinken for your LEDs!"
+[OneButton lib]: https://github.com/mathertel/OneButton
