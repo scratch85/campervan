@@ -25,6 +25,7 @@ In early 2018 I started to convert a Ford Transit Custom (SWB) into a campervan.
 * ~~effects state machine?~~ (obsolete using [WS2812FX lib])
 * consider [OneButton lib]
 * effects switcher class
+* consider cli lib
 * code cleanup
 
 ## Even more future improvements
