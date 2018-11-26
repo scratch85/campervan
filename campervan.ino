@@ -1,6 +1,6 @@
 #include <AceButton.h>
 #include "Led.h"
-#include <WS2812FX.h>
+#include "WS2812FX.h"
 #include "Color_Definitions.h"
 #include <TMP36.h>
 using namespace ace_button;
@@ -86,7 +86,11 @@ Effect effects1[] = {
 Effect effects2[] = { 
   {FX_MODE_RAINBOW, 0, LEDSTRIP_BRIGHTNESS, 4000}, 
   {FX_MODE_RAINBOW_CYCLE, 0, LEDSTRIP_BRIGHTNESS, 4000}, 
-  {FX_MODE_LARSON_SCANNER, RED, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}
+  {FX_MODE_TWINKLE_FADE, WHITE_LED, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
+  {FX_MODE_TWINKLE_FADE_RANDOM, 0, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
+  {FX_MODE_LARSON_SCANNER, RED, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED},
+  {FX_MODE_COLOR_WIPE_RANDOM, 0, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
+  {FX_MODE_COLOR_SWEEP_RANDOM, 0, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}
 };
 
 // Temperatur TMP36
@@ -193,7 +197,7 @@ void loop() {
 #ifdef ENABLE_BLE
   if(Serial2.available() > 0) {
     in = Serial2.read();
-    if(in == char(10) || in == char(13) || in == NULL) {
+    if(in == char(10) || in == char(13) || !in) {
       // ... and process inputs
       strBluetooth.trim();
       if(strBluetooth.length() > 0) {
@@ -213,7 +217,7 @@ void loop() {
 #ifdef DEBUG
   if(Serial.available() > 0) {
     in = Serial.read();
-    if(in == char(10) || in == char(13) || in == NULL) {
+    if(in == char(10) || in == char(13) || !in) {
       // ... and process inputs
       strSerial.trim();
       if(strSerial.length() > 0) {
@@ -263,7 +267,7 @@ void processSerialInput(String data) {
 void processHelp() {
   DEBUG_PRINT("usage: status [led <1-3>|strip <1-2>|tmp [C|F]]\n");
   DEBUG_PRINT("   or: led <1-3|all> [on|off|0-255|0-100%]\n");
-  DEBUG_PRINT("   or: strip <1-2|all> <on|off|color|effect [id|name] [...]>\n");
+  DEBUG_PRINT("   or: strip <1-2|all> <on|off|color|effect [id|name] [...]|sync>\n");
   DEBUG_PRINT("\n");
   DEBUG_PRINT("Common commands:\n");
   DEBUG_PRINT("  status - get the status of leds, strips and sensors\n");
@@ -452,6 +456,17 @@ void processStrip(String v1, String v2, String v3, String v4) {
       i1 = sanitizeValue(v3, 0, 0, strip1.getModeCount());
       i2 = getColorFromString(v4, RED);
     }
+  } else if(v2.equals("sync") || v2.equals("s")) {
+    i1 = FX_MODE_STATIC;
+    i2 = BLACK;
+    if(v1.equals("1")) {
+      syncStrips(&strip1, &strip2);
+      return;
+    }
+    if(v1.equals("2")) {
+      syncStrips(&strip2, &strip1);
+      return;
+    }
   } else {
     i1 = FX_MODE_STATIC;
     i2 = getColorFromString(v2, 0);
@@ -524,12 +539,26 @@ uint32_t sanitizeValue(String data, uint32_t def, uint32_t vmin, uint32_t vmax) 
 
 uint32_t getColorFromString(String c, uint32_t def) {
   c.toLowerCase();
-  if(c.equals("black") || c.equals("bl")) return BLACK;
-  if(c.equals("blue")  || c.equals("b"))  return BLUE;
-  if(c.equals("green") || c.equals("g"))  return GREEN;
-  if(c.equals("red")   || c.equals("r"))  return RED;
-  if(c.equals("white") || c.equals("w"))  return WHITE_LED;
+  if(c.equals("black")     || c.equals("0"))  return BLACK;
+  if(c.equals("blue")      || c.equals("b"))  return BLUE;
+  if(c.equals("green")     || c.equals("g"))  return GREEN;
+  if(c.equals("orange")    || c.equals("o"))  return ORANGE;
+  if(c.equals("pink")      || c.equals("p"))  return PINK;
+  if(c.equals("purle")     || c.equals("pu")) return PINK;
+  if(c.equals("red")       || c.equals("r"))  return RED;
+  if(c.equals("turquoise") || c.equals("r"))  return TURQUOISE;
+  if(c.equals("white")     || c.equals("w"))  return WHITE_LED;
+  if(c.equals("yellow")    || c.equals("y"))  return YELLOW;
   return sanitizeValue(c, def, 0, 4294967295);
+}
+
+void syncStrips(WS2812FX *s1, WS2812FX *s2) {
+  s2->setMode(s1->getMode());
+  s2->setBrightness(s1->getBrightness());
+  s2->setColors(0, s1->getColors(0));
+  s2->setSpeed(s1->getSpeed());
+  s2->setSegmentRuntime(s1->getSegmentRuntime());
+  s2->resume();
 }
 
 void handleSystemEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
@@ -693,25 +722,11 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
       switch (button->getId()) {
         case 0:
           // Sync 1 => 2
-          strip2.setMode(strip1.getMode());
-          strip2.setColor(strip1.getColor());
-          strip2.setBrightness(strip1.getBrightness());
-          strip2.setSpeed(strip1.getSpeed());
-          strip1.resetSegmentRuntimes();
-          strip2.resetSegmentRuntimes();
-          strip1.start();
-          strip2.start();
+          syncStrips(&strip1, &strip2);
           break;
         case 1:
           // Sync 2 => 1
-          strip1.setMode(strip2.getMode());
-          strip1.setColor(strip2.getColor());
-          strip1.setBrightness(strip2.getBrightness());
-          strip1.setSpeed(strip2.getSpeed());
-          strip1.resetSegmentRuntimes();
-          strip2.resetSegmentRuntimes();
-          strip1.start();
-          strip2.start();
+          syncStrips(&strip2, &strip1);
           break;
       }
       break;
