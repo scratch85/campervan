@@ -8,7 +8,7 @@ using namespace ace_button;
 #define SIZE(x) sizeof(x) / sizeof(x[0]);
 
 // Debugging Serial & Serial2 (BLE) 
-#define DEBUG
+//#define DEBUG
 #define ENABLE_BLE
 #define DEBUG_BLE
 
@@ -267,7 +267,7 @@ void processSerialInput(String data) {
 void processHelp() {
   DEBUG_PRINT("usage: status [led <1-3>|strip <1-2>|tmp [C|F]]\n");
   DEBUG_PRINT("   or: led <1-3|all> [on|off|0-255|0-100%]\n");
-  DEBUG_PRINT("   or: strip <1-2|all> <on|off|color|effect [id|name] [...]|sync>\n");
+  DEBUG_PRINT("   or: strip <1-2|all> <on|off|color|effect [id|name] [...]|sync|speed <0-100>|brightness <0-255>\n");
   DEBUG_PRINT("\n");
   DEBUG_PRINT("Common commands:\n");
   DEBUG_PRINT("  status - get the status of leds, strips and sensors\n");
@@ -285,9 +285,12 @@ void processHelp() {
   DEBUG_PRINT("  0-100% - switch brightness in percent\n");
   DEBUG_PRINT("  color  - select a specific color (see \"Colors\")\n");
   DEBUG_PRINT("  effect - select a specific effect by id or name (see \"Effects\")\n");
+  DEBUG_PRINT("  sync   - syncs the effect of the strip to the other\n");
+  DEBUG_PRINT("  speed  - sets speed of the effect, 0 is slowest\n");
+  DEBUG_PRINT("  brightness - sets strip brightness, 0 is darkest\n");
   DEBUG_PRINT("\n");
   DEBUG_PRINT("Colors:\n");
-  DEBUG_PRINT("  black, blue, green, red, white\n");
+  DEBUG_PRINT("  black, blue, green, orange, pink, purple, red, turquoise, white, yellow\n");
   DEBUG_PRINT("\n");
   DEBUG_PRINT("Effects:\n");
   DEBUG_PRINT("  1: rainbow (rb)       - rainbow colors slowly changing\n");
@@ -467,6 +470,28 @@ void processStrip(String v1, String v2, String v3, String v4) {
       syncStrips(&strip2, &strip1);
       return;
     }
+  } else if(v2.equals("speed") || v2.equals("sp")) {
+    i1 = map(sanitizeValue(v3, 50, 0, 100), 0, 100, min(SPEED_MAX, 5000 + SPEED_MIN), SPEED_MIN);
+    i2 = BLACK;
+    if(v1.equals("1")) {
+      strip1.setSpeed(i1);
+      return;
+    }
+    if(v1.equals("2")) {
+      strip2.setSpeed(i1);
+      return;
+    }
+  } else if(v2.equals("brightness") || v2.equals("b")) {
+    i1 = sanitizeValue(v3, 32, 0, 255);
+    i2 = BLACK;
+    if(v1.equals("1")) {
+      strip1.setBrightness(i1);
+      return;
+    }
+    if(v1.equals("2")) {
+      strip2.setBrightness(i1);
+      return;
+    }
   } else {
     i1 = FX_MODE_STATIC;
     i2 = getColorFromString(v2, 0);
@@ -544,7 +569,7 @@ uint32_t getColorFromString(String c, uint32_t def) {
   if(c.equals("green")     || c.equals("g"))  return GREEN;
   if(c.equals("orange")    || c.equals("o"))  return ORANGE;
   if(c.equals("pink")      || c.equals("p"))  return PINK;
-  if(c.equals("purle")     || c.equals("pu")) return PINK;
+  if(c.equals("purple")    || c.equals("pu")) return PINK;
   if(c.equals("red")       || c.equals("r"))  return RED;
   if(c.equals("turquoise") || c.equals("r"))  return TURQUOISE;
   if(c.equals("white")     || c.equals("w"))  return WHITE_LED;
