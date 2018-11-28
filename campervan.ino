@@ -61,8 +61,8 @@ Led led1, led2, led3;
 #define LEDSTRIP2_PIN 3
 
 // How many NeoPixels do the srip have?
-#define LEDSTRIP1_PIXELS 10
-#define LEDSTRIP2_PIXELS 10
+#define LEDSTRIP1_PIXELS 60
+#define LEDSTRIP2_PIXELS 60
 
 // Brightness & Speed
 #define LEDSTRIP_BRIGHTNESS 32
