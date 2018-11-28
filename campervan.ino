@@ -66,7 +66,7 @@ Led led1, led2, led3;
 
 // Brightness & Speed
 #define LEDSTRIP_BRIGHTNESS 32
-#define LEDSTRIP_SPEED 2000
+#define LEDSTRIP_SPEED 4000
 
 WS2812FX strip1 = WS2812FX(LEDSTRIP1_PIXELS, LEDSTRIP1_PIN, NEO_GRBW + NEO_KHZ800);
 WS2812FX strip2 = WS2812FX(LEDSTRIP2_PIXELS, LEDSTRIP2_PIN, NEO_GRBW + NEO_KHZ800);
@@ -79,13 +79,13 @@ struct Effect {
 };
 
 Effect effects1[] = { 
-  {FX_MODE_RAINBOW, 0, LEDSTRIP_BRIGHTNESS, 4000}, 
-  {FX_MODE_RAINBOW_CYCLE, 0, LEDSTRIP_BRIGHTNESS, 4000}, 
+  {FX_MODE_RAINBOW, 0, LEDSTRIP_BRIGHTNESS, 8000}, 
+  {FX_MODE_RAINBOW_CYCLE, 0, LEDSTRIP_BRIGHTNESS, 8000}, 
   {FX_MODE_LARSON_SCANNER, GREEN, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}
 };
 Effect effects2[] = { 
-  {FX_MODE_RAINBOW, 0, LEDSTRIP_BRIGHTNESS, 4000}, 
-  {FX_MODE_RAINBOW_CYCLE, 0, LEDSTRIP_BRIGHTNESS, 4000}, 
+  {FX_MODE_RAINBOW, 0, LEDSTRIP_BRIGHTNESS, 8000}, 
+  {FX_MODE_RAINBOW_CYCLE, 0, LEDSTRIP_BRIGHTNESS, 8000}, 
   {FX_MODE_TWINKLE_FADE, WHITE_LED, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
   {FX_MODE_TWINKLE_FADE_RANDOM, 0, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
   {FX_MODE_LARSON_SCANNER, RED, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED},
@@ -267,7 +267,11 @@ void processSerialInput(String data) {
 void processHelp() {
   DEBUG_PRINT("usage: status [led <1-3>|strip <1-2>|tmp [C|F]]\n");
   DEBUG_PRINT("   or: led <1-3|all> [on|off|0-255|0-100%]\n");
-  DEBUG_PRINT("   or: strip <1-2|all> <on|off|color|effect [id|name] [...]|sync|speed <0-100>|brightness <0-255>\n");
+  DEBUG_PRINT("   or: strip <1-2|all> <on|off|color|effect [id|name] [...]|sync|speed <");
+  DEBUG_PRINT(SPEED_MIN);
+  DEBUG_PRINT("-");
+  DEBUG_PRINT(SPEED_MAX);
+  DEBUG_PRINT(">|brightness <0-255>\n");
   DEBUG_PRINT("\n");
   DEBUG_PRINT("Common commands:\n");
   DEBUG_PRINT("  status - get the status of leds, strips and sensors\n");
@@ -471,7 +475,7 @@ void processStrip(String v1, String v2, String v3, String v4) {
       return;
     }
   } else if(v2.equals("speed") || v2.equals("sp")) {
-    i1 = map(sanitizeValue(v3, 50, 0, 100), 0, 100, min(SPEED_MAX, 5000 + SPEED_MIN), SPEED_MIN);
+    i1 = sanitizeValue(v3, SPEED_MAX / 2, SPEED_MIN, SPEED_MAX);
     i2 = BLACK;
     if(v1.equals("1")) {
       strip1.setSpeed(i1);
@@ -732,10 +736,10 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
             strip2.setMode(0);
             strip2.stop();
           } else {
-            strip2.setMode(effects1[e].fx);
-            strip2.setColor(effects1[e].c);
-            strip2.setBrightness(effects1[e].b);
-            strip2.setSpeed(effects1[e].s);
+            strip2.setMode(effects2[e].fx);
+            strip2.setColor(effects2[e].c);
+            strip2.setBrightness(effects2[e].b);
+            strip2.setSpeed(effects2[e].s);
             strip2.start();
           }
           break;
