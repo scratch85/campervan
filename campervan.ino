@@ -1,6 +1,6 @@
 #include <AceButton.h>
 #include "Led.h"
-#include "WS2812FX.h"
+#include <WS2812FX.h>
 #include "Color_Definitions.h"
 #include <TMP36.h>
 using namespace ace_button;
@@ -582,12 +582,9 @@ uint32_t getColorFromString(String c, uint32_t def) {
 }
 
 void syncStrips(WS2812FX *s1, WS2812FX *s2) {
-  s2->setMode(s1->getMode());
-  s2->setBrightness(s1->getBrightness());
-  s2->setColors(0, s1->getColors(0));
-  s2->setSpeed(s1->getSpeed());
-  s2->setSegmentRuntime(s1->getSegmentRuntime());
-  s2->resume();
+  memcpy(s2->getSegments()       , s1->getSegments()       , sizeof(struct WS2812FX::Segment));
+  memcpy(s2->getSegmentRuntimes(), s1->getSegmentRuntimes(), sizeof(struct WS2812FX::Segment_runtime));
+  memcpy(s2->getPixels()         , s1->getPixels()         , min(s2->numPixels(), s1->numPixels()) * 4);
 }
 
 void handleSystemEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
