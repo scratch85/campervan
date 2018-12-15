@@ -51,20 +51,19 @@ void handleBedEvent(AceButton*, uint8_t, uint8_t);
 void handleStripEvent(AceButton*, uint8_t, uint8_t);
 
 // LED Spots 1, 2, 3 (front -> back)
+#define NUM_LEDS 3
 #define LED1_PIN 21
 #define LED2_PIN 22
 #define LED3_PIN 23
 Led led1, led2, led3;
 
 // LED Strips 1, 2 (Driver, Co-Driver)
+#define NUM_STRIPS 2
 #define LEDSTRIP1_PIN 4
-#define LEDSTRIP2_PIN 3
-
-// How many NeoPixels do the srip have?
 #define LEDSTRIP1_PIXELS 60
+#define LEDSTRIP2_PIN 3
 #define LEDSTRIP2_PIXELS 60
 
-// Brightness & Speed
 #define LEDSTRIP_BRIGHTNESS 32
 #define LEDSTRIP_SPEED 4000
 
@@ -253,14 +252,33 @@ void processSerialInput(String data) {
   DEBUG_PRINT(data);
   DEBUG_PRINT("\n");
 
+  char buf[20];
+  uint8_t r = 0;
+
   if(data.equals("help")) {
     processHelp();
   } else if(data.startsWith("status")) {
-    processStatus(split(data,' ',1), split(data,' ',2));
-  } else if(data.startsWith("led")) {
-    processLed(split(data,' ',1), split(data,' ',2));
-  } else if(data.startsWith("strip")) {
-    processStrip(split(data,' ',1), split(data,' ',2), split(data,' ',3), split(data,' ',4));
+    //processStatus(split(data,' ',1), split(data,' ',2));
+  } else if(data.startsWith("l")) {
+    data.toCharArray(buf, sizeof(buf));
+    r = processLed(buf, sizeof(buf));
+    if(r != 0) {
+      DEBUG_PRINT(F("processLed failed at "));
+      DEBUG_PRINT(r);
+      DEBUG_PRINT(F("\n"));
+      DEBUG_PRINT(buf);
+      DEBUG_PRINT(F("\n"));
+    }
+  } else if(data.startsWith("s")) {
+    data.toCharArray(buf, sizeof(buf));
+    r = processStrip(buf, sizeof(buf));
+    if(r != 0) {
+      DEBUG_PRINT(F("processLed failed at "));
+      DEBUG_PRINT(r);
+      DEBUG_PRINT(F("\n"));
+      DEBUG_PRINT(buf);
+      DEBUG_PRINT(F("\n"));
+    }
   }
 }
 
@@ -389,196 +407,128 @@ void processStatus(String v1, String v2) {
   }
 }
 
-void processLed(String v1, String v2) {
-  v1.toLowerCase();
-  v2.toLowerCase();
-  
-  DEBUG_PRINT("processLed(");
-  DEBUG_PRINT(v1);
-  DEBUG_PRINT(", ");
-  DEBUG_PRINT(v2);
-  DEBUG_PRINT(")\n");
-
-  uint32_t i1;
-  if(v2.equals("on")) {
-    i1 = 255;
-  } else if(v2.equals("off")) {
-    i1 = 0;
-  } else if(v2.endsWith("%")) {
-    i1 = map(sanitizeValue(v2.remove(v2.length() - 1), 0, 0, 100), 0, 100, 0, 255);
-  } else {
-    i1 = sanitizeValue(v2, 255, 0, 255);
-  }
-  if(v1.equals("1") || v1.equals("2") || v1.equals("3")) {
-    if(v1.equals("1")) {
-      led1.on(i1);
-    } else if(v1.equals("2")) {
-      led2.on(i1);
-    } else if(v1.equals("3")) {
-      led3.on(i1);
-    } else {
-      // nothing
+uint8_t processLed(char str[], uint8_t s) {
+  uint8_t i = 0;
+  uint8_t v;
+  bool a[NUM_LEDS] = {false, false, false};
+  uint8_t b = 255;
+  while(i < s) {
+    switch(str[i]) {
+      case 'l': // leds
+        if(i + 1 >= s) return i;
+        v = str[i + 1];
+        if(v == 0 || v == '0') {
+          a[0] = true;
+          a[1] = true;
+          a[2] = true;
+        } else if(v == 1 || v == '1') {
+          a[0] = true;
+        } else if(v == 2 || v == '2') {
+          a[1] = true;
+        } else if(v == 3 || v == '3') {
+          a[2] = true;
+        } else {
+          return i;
+        }
+        i = i + 2;
+      break;
+      case 'b': // brigthness
+        if(i + 1 >= s) return i;
+        b = str[i + 1];
+        i = i + 2;
+      break;
+      default:
+        return i;
+      break;
     }
-  } else {
-    led1.on(i1);
-    led2.on(i1);
-    led3.on(i1);
   }
+  if(a[0]) led1.on(b);
+  if(a[1]) led2.on(b);
+  if(a[2]) led3.on(b);
+  return 0;
 }
 
-void processStrip(String v1, String v2, String v3, String v4) {
-  v1.toLowerCase();
-  v2.toLowerCase();
-  v3.toLowerCase();
-  v4.toLowerCase();
-  
-  DEBUG_PRINT("processStrip(");
-  DEBUG_PRINT(v1);
-  DEBUG_PRINT(", ");
-  DEBUG_PRINT(v2);
-  DEBUG_PRINT(", ");
-  DEBUG_PRINT(v3);
-  DEBUG_PRINT(", ");
-  DEBUG_PRINT(v4);
-  DEBUG_PRINT(")\n");
-
-  uint32_t i1, i2;
-  if(v2.equals("on")) {
-    i1 = FX_MODE_STATIC;
-    i2 = WHITE_LED;
-  } else if(v2.equals("off")) {
-    i1 = FX_MODE_STATIC;
-    i2 = BLACK;
-  } else if(v2.equals("effect") || v2.equals("e")) {
-    if(v3.equals("rainbow") || v3.equals("rb")) {
-      i1 = FX_MODE_RAINBOW;
-      i2 = WHITE_LED;
-    } else if(v3.equals("rainbowcycle") || v3.equals("rbc")) {
-      i1 = FX_MODE_RAINBOW_CYCLE;
-      i2 = WHITE_LED;
-    } else if(v3.equals("knightrider") || v3.equals("kr") || v3.equals("larsonscanner") || v3.equals("ls")) {
-      i1 = FX_MODE_LARSON_SCANNER;
-      i2 = getColorFromString(v4, RED);
-    } else {
-      i1 = sanitizeValue(v3, 0, 0, strip1.getModeCount());
-      i2 = getColorFromString(v4, RED);
-    }
-  } else if(v2.equals("sync") || v2.equals("s")) {
-    i1 = FX_MODE_STATIC;
-    i2 = BLACK;
-    if(v1.equals("1")) {
-      syncStrips(&strip1, &strip2);
-      return;
-    }
-    if(v1.equals("2")) {
-      syncStrips(&strip2, &strip1);
-      return;
-    }
-  } else if(v2.equals("speed") || v2.equals("sp")) {
-    i1 = sanitizeValue(v3, SPEED_MAX / 2, SPEED_MIN, SPEED_MAX);
-    i2 = BLACK;
-    if(v1.equals("1")) {
-      strip1.setSpeed(i1);
-      return;
-    }
-    if(v1.equals("2")) {
-      strip2.setSpeed(i1);
-      return;
-    }
-  } else if(v2.equals("brightness") || v2.equals("b")) {
-    i1 = sanitizeValue(v3, 32, 0, 255);
-    i2 = BLACK;
-    if(v1.equals("1")) {
-      strip1.setBrightness(i1);
-      return;
-    }
-    if(v1.equals("2")) {
-      strip2.setBrightness(i1);
-      return;
-    }
-  } else {
-    i1 = FX_MODE_STATIC;
-    i2 = getColorFromString(v2, 0);
-  }
-
-  if(v1.equals("1") || v1.equals("2")) {
-    if(v1.equals("1")) {
-      if(i2 == BLACK) {
-        strip1.stop();
-      } else {
-        strip1.setColor(i2);
-        strip1.setMode(i1);
-        strip1.start();
-      }
-    } else if(v1.equals("2")) {
-      if(i2 == BLACK) {
-        strip2.stop();
-      } else {
-        strip2.setColor(i2);
-        strip2.setMode(i1);
-        strip2.start();
-      }
-    }
-  } else {
-    if(i2 == BLACK) {
-      strip1.stop();
-      strip2.stop();
-    } else {
-      strip1.setColor(i2);
-      strip2.setColor(i2);
-      strip1.setMode(i1);
-      strip2.setMode(i1);
-      strip1.start();
-      strip2.start();
+uint8_t processStrip(char str[], uint8_t s) {
+  uint8_t i = 0;
+  uint8_t v;
+  bool a[NUM_STRIPS] = {false, false};
+  bool y = false; // sync
+  uint8_t e = 0;  // effect
+  uint8_t b = LEDSTRIP_BRIGHTNESS; // brightness
+  uint8_t p = 0;  // speed
+  uint32_t c[NUM_COLORS] = {0, 0, 0};
+  uint8_t ci = 0; // color index
+  while(i < s) {
+    switch(str[i]) {
+      case 's': // strips
+        if(i + 1 >= s) return i;
+        v = str[i + 1];
+        if(v == 0 || v == '0') {
+          a[0] = true;
+          a[1] = true;
+        } else if(v == 1 || v == '1') {
+          a[0] = true;
+        } else if(v == 2 || v == '2') {
+          a[1] = true;
+        } else {
+          return i;
+        }
+        i = i + 2;
+      break;
+      case 'b': // brigthness
+        if(i + 1 >= s) return i;
+        b = str[i + 1];
+        i = i + 2;
+      break;
+      case 'c': // color
+        if(i + 4 >= s || ci >= NUM_COLORS) return i;
+        c[ci++] = ((uint32_t) str[i + 1] << 24) | ((uint32_t) str[i + 2] << 16) | ((uint32_t) str[i + 3] << 8) | str[i + 4];
+        i = i + 5;
+      break;
+      case 'e': // effect
+        if(i + 1 >= s) return i;
+        e = str[i + 1];
+        if(e >= MODE_COUNT) return i;
+        i = i + 2;
+      break;
+      case 'p': // speed
+        if(i + 1 >= s) return i;
+        p = str[i + 1];
+        i = i + 2;
+      break;
+      case 'y': // sync
+        y = true;
+        i++;
+      break;
+      default:
+        return i;
+      break;
     }
   }
-}
-
-String split(String data, char separator, int index) {
-  int found = 0;
-  int strIndex[] = { 0, -1 };
-  int maxIndex = data.length() - 1;
-  for(int i = 0; i <= maxIndex && found <= index; i++) {
-    if(data.charAt(i) == separator || i == maxIndex) {
-      found++;
-      strIndex[0] = strIndex[1] + 1;
-      strIndex[1] = (i == maxIndex) ? i + 1 : i;
-    }
+  if(a[0]) {
+    strip1.setBrightness(b);
+    strip1.setColors(0, c);
+    if(p > 0) strip1.setSpeed(map(p, 0, 255, SPEED_MIN, SPEED_MAX));
+    strip1.setMode(e);
+    strip1.start();
+    if(y && !a[1]) syncStrips(&strip1, &strip2);
   }
-  return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
-}
-
-uint8_t getIndex(Effect e[], uint8_t s, uint8_t value) {
-  for(uint8_t i = 0; i < s; i++) {
-    if(e[i].fx == value) return i + 1;
+  if(a[1]) {
+    strip2.setBrightness(b);
+    strip2.setColors(0, c);
+    if(p > 0) strip2.setSpeed(map(p, 0, 255, SPEED_MIN, SPEED_MAX));
+    strip2.setMode(e);
+    strip2.start();
+    if(y && !a[0]) syncStrips(&strip2, &strip1);
   }
   return 0;
 }
 
-uint32_t sanitizeValue(String data, uint32_t def, uint32_t vmin, uint32_t vmax) {
-  uint32_t tmp;
-  if(data.length() > 0) {
-    tmp = data.toInt();
-    tmp = min(max(tmp, vmin), vmax);
-  } else {
-    tmp = def;
+uint8_t getIndex(Effect e[], uint8_t s, uint8_t val) {
+  for(uint8_t i = 0; i < s; i++) {
+    if(e[i].fx == val) return i + 1;
   }
-  return tmp;
-}
-
-uint32_t getColorFromString(String c, uint32_t def) {
-  c.toLowerCase();
-  if(c.equals("black")     || c.equals("0"))  return BLACK;
-  if(c.equals("blue")      || c.equals("b"))  return BLUE;
-  if(c.equals("green")     || c.equals("g"))  return GREEN;
-  if(c.equals("orange")    || c.equals("o"))  return ORANGE;
-  if(c.equals("pink")      || c.equals("p"))  return PINK;
-  if(c.equals("purple")    || c.equals("pu")) return PINK;
-  if(c.equals("red")       || c.equals("r"))  return RED;
-  if(c.equals("turquoise") || c.equals("r"))  return TURQUOISE;
-  if(c.equals("white")     || c.equals("w"))  return WHITE_LED;
-  if(c.equals("yellow")    || c.equals("y"))  return YELLOW;
-  return sanitizeValue(c, def, 0, 4294967295);
+  return 0;
 }
 
 void syncStrips(WS2812FX *s1, WS2812FX *s2) {
