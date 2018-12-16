@@ -82,24 +82,25 @@ WS2812FX strip2 = WS2812FX(LEDSTRIP2_PIXELS, LEDSTRIP2_PIN, NEO_GRBW + NEO_KHZ80
 
 struct Effect {
   uint8_t fx;
-  uint32_t c;
+  uint32_t c[NUM_COLORS];
   uint8_t b;
   uint16_t s;
 };
 
 Effect effects1[] = { 
-  {FX_MODE_RAINBOW, 0, LEDSTRIP_BRIGHTNESS, 8000}, 
-  {FX_MODE_RAINBOW_CYCLE, 0, LEDSTRIP_BRIGHTNESS, 8000}, 
-  {FX_MODE_LARSON_SCANNER, GREEN, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}
+  {FX_MODE_RAINBOW, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, 8000}, 
+  {FX_MODE_RAINBOW_CYCLE, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, 8000}, 
+  {FX_MODE_LARSON_SCANNER, {GREEN, GREEN, GREEN}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}
 };
+
 Effect effects2[] = { 
-  {FX_MODE_RAINBOW, 0, LEDSTRIP_BRIGHTNESS, 8000}, 
-  {FX_MODE_RAINBOW_CYCLE, 0, LEDSTRIP_BRIGHTNESS, 8000}, 
-  {FX_MODE_TWINKLE_FADE, WHITE_LED, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
-  {FX_MODE_TWINKLE_FADE_RANDOM, 0, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
-  {FX_MODE_LARSON_SCANNER, RED, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED},
-  {FX_MODE_COLOR_WIPE_RANDOM, 0, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
-  {FX_MODE_COLOR_SWEEP_RANDOM, 0, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}
+  {FX_MODE_RAINBOW, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, 8000}, 
+  {FX_MODE_RAINBOW_CYCLE, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, 8000}, 
+  {FX_MODE_TWINKLE_FADE, {WHITE_LED, WHITE_LED, WHITE_LED}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
+  {FX_MODE_TWINKLE_FADE_RANDOM, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
+  {FX_MODE_LARSON_SCANNER, {RED, RED, RED}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED},
+  {FX_MODE_COLOR_WIPE_RANDOM, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
+  {FX_MODE_COLOR_SWEEP_RANDOM, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}
 };
 
 // Temperatur TMP36
@@ -655,7 +656,7 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
             strip1.stop();
           } else {
             strip1.setMode(effects1[e].fx);
-            strip1.setColor(effects1[e].c);
+            strip1.setColors(0, effects1[e].c);
             strip1.setBrightness(effects1[e].b);
             strip1.setSpeed(effects1[e].s);
             strip1.start();
@@ -669,7 +670,7 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
             strip2.stop();
           } else {
             strip2.setMode(effects2[e].fx);
-            strip2.setColor(effects2[e].c);
+            strip2.setColors(0, effects2[e].c);
             strip2.setBrightness(effects2[e].b);
             strip2.setSpeed(effects2[e].s);
             strip2.start();
