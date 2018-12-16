@@ -8,18 +8,26 @@ using namespace ace_button;
 #define SIZE(x) sizeof(x) / sizeof(x[0]);
 
 // Debugging Serial & Serial2 (BLE) 
-//#define DEBUG
+#define DEBUG
 #define ENABLE_BLE
 #define DEBUG_BLE
 
 #if defined DEBUG && defined ENABLE_BLE && defined DEBUG_BLE
   #define DEBUG_PRINT(x) Serial.print(x); Serial2.print(x);
+  #define DEBUG_PRINTF(x, y) Serial.print(x, y); Serial2.print(x, y);
+  #define DEBUG_PRINTLN(x) Serial.println(x); Serial2.println(x);
 #elif defined DEBUG
   #define DEBUG_PRINT(x) Serial.print(x);
+  #define DEBUG_PRINTF(x, y) Serial.print(x, y);
+  #define DEBUG_PRINTLN(x) Serial.println(x);
 #elif defined ENABLE_BLE && defined DEBUG_BLE
   #define DEBUG_PRINT(x) Serial2.print(x);
+  #define DEBUG_PRINTF(x, y) Serial2.print(x, y);
+  #define DEBUG_PRINTLN(x) Serial2.println(x);
 #else
-  #define DEBUG_PRINT(x)
+  #define DEBUG_PRINT(x);
+  #define DEBUG_PRINTF(x);
+  #define DEBUG_PRINTLN(x);
 #endif
 
 // Serial & Seriel2 (Bluetooth Low Energy (BLE))
@@ -27,8 +35,10 @@ using namespace ace_button;
 #define SERIAL1_TIMEOUT 100
 #define SERIAL2_TIMEOUT 100
 
-String strSerial = "";
-String strBluetooth = "";
+char serial[20];
+uint8_t si = 0;
+char bluetooth[20];
+uint8_t bi = 0;
 
 // Buttons
 ButtonConfig buttonConfigBed;
@@ -194,40 +204,38 @@ void loop() {
 
   // Read from Seriel2 (Bluetooth Low Energy (BLE) module) ...
 #ifdef ENABLE_BLE
-  if(Serial2.available() > 0) {
+  while(Serial2.available() > 0) {
     in = Serial2.read();
-    if(in == char(10) || in == char(13) || !in) {
+    if(in == char(10) || in == char(13)) {
       // ... and process inputs
-      strBluetooth.trim();
-      if(strBluetooth.length() > 0) {
-        DEBUG_PRINT("Bluetooth: ");
-        DEBUG_PRINT(strBluetooth);
-        DEBUG_PRINT("\n");
-        processSerialInput(strBluetooth);
-        strBluetooth = "";
+      if(strlen(bluetooth) > 0) {
+        DEBUG_PRINT(F("Bluetooth: "));
+        DEBUG_PRINTLN(bluetooth);
+        processSerialInput(bluetooth, sizeof(bluetooth));
+        memset(bluetooth, '\0', sizeof(bluetooth));
+        bi = 0;
       }
     } else {
-      strBluetooth += in;
+      bluetooth[bi++] = in;
     }
   }
 #endif
 
   // Read from Serial ...
 #ifdef DEBUG
-  if(Serial.available() > 0) {
+  while(Serial.available() > 0) {
     in = Serial.read();
-    if(in == char(10) || in == char(13) || !in) {
+    if(in == char(10) || in == char(13)) {
       // ... and process inputs
-      strSerial.trim();
-      if(strSerial.length() > 0) {
-        DEBUG_PRINT("Serial: ");
-        DEBUG_PRINT(strSerial);
-        DEBUG_PRINT("\n");
-        processSerialInput(strSerial);
-        strSerial = "";
+      if(strlen(serial) > 0) {
+        DEBUG_PRINT(F("Serial: "));
+        DEBUG_PRINTLN(serial);
+        processSerialInput(serial, sizeof(serial));
+        memset(serial, '\0', sizeof(serial));
+        si = 0;
       }
     } else {
-      strSerial += in;
+      serial[si++] = in;
     }
   }
 #endif
@@ -245,82 +253,53 @@ void loop() {
   strip2.service();
 }
 
-void processSerialInput(String data) {
-  // process everything in lowercase
-  data.toLowerCase();
-  DEBUG_PRINT("processSerialInput: ");
-  DEBUG_PRINT(data);
-  DEBUG_PRINT("\n");
-
-  char buf[20];
+void processSerialInput(char str[], uint8_t s) {
   uint8_t r = 0;
 
-  if(data.equals("help")) {
+  if(strncmp(str, "h", 1) == 0) {
     processHelp();
-  } else if(data.startsWith("status")) {
+  //} else if(data.startsWith("status")) {
     //processStatus(split(data,' ',1), split(data,' ',2));
-  } else if(data.startsWith("l")) {
-    data.toCharArray(buf, sizeof(buf));
-    r = processLed(buf, sizeof(buf));
+  }
+  else if(strncmp(str, "l", 1) == 0) {
+    r = processLed(str, s);
     if(r != 0) {
       DEBUG_PRINT(F("processLed failed at "));
-      DEBUG_PRINT(r);
-      DEBUG_PRINT(F("\n"));
-      DEBUG_PRINT(buf);
-      DEBUG_PRINT(F("\n"));
+      DEBUG_PRINTLN(r);
+      DEBUG_PRINTLN(str);
     }
-  } else if(data.startsWith("s")) {
-    data.toCharArray(buf, sizeof(buf));
-    r = processStrip(buf, sizeof(buf));
+  } else if(strncmp(str, "s", 1) == 0) {
+    r = processStrip(str, s);
     if(r != 0) {
-      DEBUG_PRINT(F("processLed failed at "));
-      DEBUG_PRINT(r);
-      DEBUG_PRINT(F("\n"));
-      DEBUG_PRINT(buf);
-      DEBUG_PRINT(F("\n"));
+      DEBUG_PRINT(F("processStrip failed at "));
+      DEBUG_PRINTLN(r);
+      DEBUG_PRINTLN(str);
     }
   }
 }
 
 void processHelp() {
-  DEBUG_PRINT("usage: status [led <1-3>|strip <1-2>|tmp [C|F]]\n");
-  DEBUG_PRINT("   or: led <1-3|all> [on|off|0-255|0-100%]\n");
-  DEBUG_PRINT("   or: strip <1-2|all> <on|off|color|effect [id|name] [...]|sync|speed <");
-  DEBUG_PRINT(SPEED_MIN);
-  DEBUG_PRINT("-");
-  DEBUG_PRINT(SPEED_MAX);
-  DEBUG_PRINT(">|brightness <0-255>\n");
-  DEBUG_PRINT("\n");
-  DEBUG_PRINT("Common commands:\n");
-  DEBUG_PRINT("  status - get the status of leds, strips and sensors\n");
-  DEBUG_PRINT("  led    - control led lights\n");
-  DEBUG_PRINT("  strip  - control led strips\n");
-  DEBUG_PRINT("\n");
-  DEBUG_PRINT("Generic options:\n");
-  DEBUG_PRINT("  <1-3>  - select the device id you want to control\n");
-  DEBUG_PRINT("  all    - select to control all led or strip devices\n");
-  DEBUG_PRINT("\n");
-  DEBUG_PRINT("Specific options:\n");
-  DEBUG_PRINT("  on     - switch device on\n");
-  DEBUG_PRINT("  off    - switch device off\n");
-  DEBUG_PRINT("  0-255  - select brightness as byte\n");
-  DEBUG_PRINT("  0-100% - switch brightness in percent\n");
-  DEBUG_PRINT("  color  - select a specific color (see \"Colors\")\n");
-  DEBUG_PRINT("  effect - select a specific effect by id or name (see \"Effects\")\n");
-  DEBUG_PRINT("  sync   - syncs the effect of the strip to the other\n");
-  DEBUG_PRINT("  speed  - sets speed of the effect, 0 is slowest\n");
-  DEBUG_PRINT("  brightness - sets strip brightness, 0 is darkest\n");
-  DEBUG_PRINT("\n");
-  DEBUG_PRINT("Colors:\n");
-  DEBUG_PRINT("  black, blue, green, orange, pink, purple, red, turquoise, white, yellow\n");
-  DEBUG_PRINT("\n");
-  DEBUG_PRINT("Effects:\n");
-  DEBUG_PRINT("  1: rainbow (rb)       - rainbow colors slowly changing\n");
-  DEBUG_PRINT("  2: rainbowcycle (rbc) - all rainbow colors cycling at once\n");
-  DEBUG_PRINT("  3: knightrider (kr)   - moving red light\n");
-  DEBUG_PRINT("\n");
+  DEBUG_PRINTLN(F("Leds"));
+  DEBUG_PRINTLN(F("l<0-3>   - number indicates which led to control, 0 means all"));
+  DEBUG_PRINTLN(F("b<0-255> - brigthness control, from darkest (0) to brightest (255), default is 255 if not specified"));
+  DEBUG_PRINTLN();
+  DEBUG_PRINTLN(F("Strips"));
+  DEBUG_PRINTLN(F("s<0-2>   - number indicates which strip to control, 0 means all"));
+  DEBUG_PRINT(F("b<0-255> - brigthness control, from darkest (0) to brightest (255), default is "));
+  DEBUG_PRINT(LEDSTRIP_BRIGHTNESS);
+  DEBUG_PRINTLN(F(" if not specified"));
+  DEBUG_PRINT(F("p<1-255> - speed control, from slowest (1) to fastest (255), default is "));
+  DEBUG_PRINT(LEDSTRIP_SPEED);
+  DEBUG_PRINTLN(F(" if not specified"));
+  DEBUG_PRINT(F("e<0-"));
+  DEBUG_PRINT(MODE_COUNT);
+  DEBUG_PRINTLN(F(">  - effect control, default is 0"));
+  DEBUG_PRINTLN(F("c<WRGB>  - color control, set each as values from 0-255, specify up to 3 colors"));
+  DEBUG_PRINTLN(F("y        - sync settings to other strip"));
+  DEBUG_PRINTLN();
 }
 
+/*
 void processStatus(String v1, String v2) {
   v1.toLowerCase();
   v2.toLowerCase();
@@ -406,6 +385,7 @@ void processStatus(String v1, String v2) {
     DEBUG_PRINT("\n");
   }
 }
+*/
 
 uint8_t processLed(char str[], uint8_t s) {
   uint8_t i = 0;
@@ -438,7 +418,7 @@ uint8_t processLed(char str[], uint8_t s) {
         i = i + 2;
       break;
       default:
-        return i;
+        i++;
       break;
     }
   }
@@ -482,7 +462,7 @@ uint8_t processStrip(char str[], uint8_t s) {
       break;
       case 'c': // color
         if(i + 4 >= s || ci >= NUM_COLORS) return i;
-        c[ci++] = ((uint32_t) str[i + 1] << 24) | ((uint32_t) str[i + 2] << 16) | ((uint32_t) str[i + 3] << 8) | str[i + 4];
+        c[ci++] = (str[i + 1] << 24) | (str[i + 2] << 16) | (str[i + 3] << 8) | str[i + 4];
         i = i + 5;
       break;
       case 'e': // effect
@@ -501,13 +481,14 @@ uint8_t processStrip(char str[], uint8_t s) {
         i++;
       break;
       default:
-        return i;
+        i++;
       break;
     }
   }
   if(a[0]) {
     strip1.setBrightness(b);
-    strip1.setColors(0, c);
+    strip1.setColor(c[0]);
+    //strip1.setColors(0, c);
     if(p > 0) strip1.setSpeed(map(p, 0, 255, SPEED_MIN, SPEED_MAX));
     strip1.setMode(e);
     strip1.start();
@@ -515,7 +496,8 @@ uint8_t processStrip(char str[], uint8_t s) {
   }
   if(a[1]) {
     strip2.setBrightness(b);
-    strip2.setColors(0, c);
+    strip2.setColor(c[0]);
+    //strip2.setColors(0, c);
     if(p > 0) strip2.setSpeed(map(p, 0, 255, SPEED_MIN, SPEED_MAX));
     strip2.setMode(e);
     strip2.start();
