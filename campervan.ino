@@ -96,7 +96,7 @@ Effect effects1[] = {
 Effect effects2[] = { 
   {FX_MODE_RAINBOW, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, 8000}, 
   {FX_MODE_RAINBOW_CYCLE, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, 8000}, 
-  {FX_MODE_TWINKLE_FADE, {WHITE_LED, WHITE_LED, WHITE_LED}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
+  {FX_MODE_TWINKLE_FADE, {WHITE, WHITE, WHITE}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
   {FX_MODE_TWINKLE_FADE_RANDOM, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
   {FX_MODE_LARSON_SCANNER, {RED, RED, RED}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED},
   {FX_MODE_COLOR_WIPE_RANDOM, {0, 0, 0}, LEDSTRIP_BRIGHTNESS, LEDSTRIP_SPEED}, 
@@ -120,15 +120,15 @@ void setup() {
 #ifdef DEBUG
   Serial.begin(SERIAL_BAUDRATE);
   Serial.setTimeout(SERIAL1_TIMEOUT);
-  Serial.print("Serial (console) started at ");
+  Serial.print(F("Serial (console) started at "));
   Serial.println(SERIAL_BAUDRATE);
 #ifdef DEBUG_BLE
-  Serial.print("Serial2 (BLE) started at ");
+  Serial.print(F("Serial2 (ble) started at "));
   Serial.println(SERIAL_BAUDRATE);
 #endif
-  Serial.print("Sketch:   ");
+  Serial.print(F("Sketch: "));
   Serial.println(__FILE__);
-  Serial.print("Uploaded: ");
+  Serial.print(F("Uploaded: "));
   Serial.println(__DATE__);
 #endif
 
@@ -137,14 +137,14 @@ void setup() {
   Serial2.begin(SERIAL_BAUDRATE);
   Serial2.setTimeout(SERIAL2_TIMEOUT);
 #ifdef DEBUG
-  Serial2.print("Serial (console) started at ");
+  Serial2.print(F("Serial (console) started at "));
   Serial2.println(SERIAL_BAUDRATE);
 #endif
-  Serial2.print("Serial2 (BLE) started at ");
+  Serial2.print(F("Serial2 (ble) started at "));
   Serial2.println(SERIAL_BAUDRATE);  
-  Serial2.print("Sketch:   ");
+  Serial2.print(F("Sketch: "));
   Serial2.println(__FILE__);
-  Serial2.print("Uploaded: ");
+  Serial2.print(F("Uploaded: "));
   Serial2.println(__DATE__);
 #endif
 
@@ -207,15 +207,13 @@ void loop() {
 #ifdef ENABLE_BLE
   while(Serial2.available() > 0) {
     in = Serial2.read();
-    if(in == char(10) || in == char(13)) {
+    if(bi > 0 && bluetooth[bi - 1] == char(13) && in == char(10)) {
       // ... and process inputs
-      if(strlen(bluetooth) > 0) {
-        DEBUG_PRINT(F("Bluetooth: "));
-        DEBUG_PRINTLN(bluetooth);
-        processSerialInput(bluetooth, sizeof(bluetooth));
-        memset(bluetooth, '\0', sizeof(bluetooth));
-        bi = 0;
-      }
+      DEBUG_PRINT(F("Bluetooth: "));
+      DEBUG_PRINTLN(bluetooth);
+      processSerialInput(bluetooth, sizeof(bluetooth));
+      memset(bluetooth, '\0', sizeof(bluetooth));
+      bi = 0;
     } else {
       bluetooth[bi++] = in;
     }
@@ -226,15 +224,13 @@ void loop() {
 #ifdef DEBUG
   while(Serial.available() > 0) {
     in = Serial.read();
-    if(in == char(10) || in == char(13)) {
+    if(si > 0 && serial[si - 1] == char(13) && in == char(10)) {
       // ... and process inputs
-      if(strlen(serial) > 0) {
-        DEBUG_PRINT(F("Serial: "));
-        DEBUG_PRINTLN(serial);
-        processSerialInput(serial, sizeof(serial));
-        memset(serial, '\0', sizeof(serial));
-        si = 0;
-      }
+      DEBUG_PRINT(F("Serial: "));
+      DEBUG_PRINTLN(serial);
+      processSerialInput(serial, sizeof(serial));
+      memset(serial, '\0', sizeof(serial));
+      si = 0;
     } else {
       serial[si++] = in;
     }
@@ -280,6 +276,7 @@ void processSerialInput(char str[], uint8_t s) {
 }
 
 void processHelp() {
+  uint8_t cs = SIZE(c);
   DEBUG_PRINTLN(F("Leds"));
   DEBUG_PRINTLN(F("l<0-3>   - number indicates which led to control, 0 means all"));
   DEBUG_PRINTLN(F("b<0-255> - brigthness control, from darkest (0) to brightest (255), default is 255 if not specified"));
@@ -295,8 +292,23 @@ void processHelp() {
   DEBUG_PRINT(F("e<0-"));
   DEBUG_PRINT(MODE_COUNT);
   DEBUG_PRINTLN(F(">  - effect control, default is 0"));
-  DEBUG_PRINTLN(F("c<WRGB>  - color control, set each as values from 0-255, specify up to 3 colors"));
+  DEBUG_PRINT(F("c<0-"));
+  DEBUG_PRINT(cs);
+  DEBUG_PRINTLN(F(">  - color control, specify up to 3 colors"));
   DEBUG_PRINTLN(F("y        - sync settings to other strip"));
+  DEBUG_PRINTLN();
+  DEBUG_PRINTLN(F("Colors"));
+  for(uint8_t i = 1; i < cs; i++) {
+    DEBUG_PRINT(c[i - 1].n);
+    DEBUG_PRINT(F(" ("));
+    DEBUG_PRINT(i - 1);
+    DEBUG_PRINT(F(")"));
+    if(i % 3 == 0) {
+      DEBUG_PRINTLN(F(","));
+    } else {
+      DEBUG_PRINT(F("\t"));
+    }
+  }
   DEBUG_PRINTLN();
 }
 
@@ -437,8 +449,9 @@ uint8_t processStrip(char str[], uint8_t s) {
   uint8_t e = 0;  // effect
   uint8_t b = LEDSTRIP_BRIGHTNESS; // brightness
   uint8_t p = 0;  // speed
-  uint32_t c[NUM_COLORS] = {0, 0, 0};
+  uint32_t ca[NUM_COLORS] = {0, 0, 0};
   uint8_t ci = 0; // color index
+  uint8_t cs = SIZE(c);
   while(i < s) {
     switch(str[i]) {
       case 's': // strips
@@ -462,9 +475,18 @@ uint8_t processStrip(char str[], uint8_t s) {
         i = i + 2;
       break;
       case 'c': // color
-        if(i + 4 >= s || ci >= NUM_COLORS) return i;
-        c[ci++] = (str[i + 1] << 24) | (str[i + 2] << 16) | (str[i + 3] << 8) | str[i + 4];
-        i = i + 5;
+        if(ci >= NUM_COLORS) return i;
+        //if(i + 4 >= s) {
+          if(i + 1 >= s) {
+            return i;
+          } else {
+            ca[ci++] = c[(uint8_t) str[i + 1] % cs].col;
+            i = i + 1;
+          }
+        //} else {
+        //  ca[ci++] = (str[i + 1] << 24) | (str[i + 2] << 16) | (str[i + 3] << 8) | str[i + 4];
+        //  i = i + 5;
+        //}
       break;
       case 'e': // effect
         if(i + 1 >= s) return i;
@@ -488,18 +510,17 @@ uint8_t processStrip(char str[], uint8_t s) {
   }
   if(a[0]) {
     strip1.setBrightness(b);
-    strip1.setColor(c[0]);
-    //strip1.setColors(0, c);
-    if(p > 0) strip1.setSpeed(map(p, 0, 255, SPEED_MIN, SPEED_MAX));
+    strip1.setColors(0, ca);
+    if(p > 0) strip1.setSpeed(map(p, 0, 255, SPEED_MAX, SPEED_MIN));
     strip1.setMode(e);
     strip1.start();
     if(y && !a[1]) syncStrips(&strip1, &strip2);
   }
   if(a[1]) {
     strip2.setBrightness(b);
-    strip2.setColor(c[0]);
-    //strip2.setColors(0, c);
-    if(p > 0) strip2.setSpeed(map(p, 0, 255, SPEED_MIN, SPEED_MAX));
+    strip2.setColors(0, ca);
+    if(p > 0) strip2.setSpeed(map(p, 0, 255, SPEED_MAX, SPEED_MIN));
+    DEBUG_PRINTLN(e);
     strip2.setMode(e);
     strip2.start();
     if(y && !a[0]) syncStrips(&strip2, &strip1);
@@ -507,7 +528,7 @@ uint8_t processStrip(char str[], uint8_t s) {
   return 0;
 }
 
-uint8_t getIndex(Effect e[], uint8_t s, uint8_t val) {
+uint8_t getNextEffect(Effect e[], uint8_t s, uint8_t val) {
   for(uint8_t i = 0; i < s; i++) {
     if(e[i].fx == val) return i + 1;
   }
@@ -536,12 +557,12 @@ void handleSystemEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
   switch (eventType) {
     case AceButton::kEventClicked:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventClicked event detected\n");
+      DEBUG_PRINTLN(F(": kEventClicked event detected"));
       led1.toggle();
       break;
     case AceButton::kEventDoubleClicked:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventDoubleClicked event detected\n");
+      DEBUG_PRINTLN(F(": kEventDoubleClicked event detected"));
       if(led1.isOn()) {
         led1.dimDown(round(255 * 0.2)); // dim down 20%
       } else {
@@ -550,7 +571,7 @@ void handleSystemEvent(AceButton* button, uint8_t eventType, uint8_t buttonState
       break;
     case AceButton::kEventLongPressed:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventLongPressed event detected\n");
+      DEBUG_PRINTLN(F(": kEventLongPressed event detected"));
       if(led1.isOn() || led2.isOn() || led3.isOn()) {
         led1.off();
         led2.off();
@@ -578,12 +599,12 @@ void handleBedEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
   switch (eventType) {
     case AceButton::kEventClicked:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventClicked event detected\n");
+      DEBUG_PRINTLN(F(": kEventClicked event detected"));
       led3.toggle();
       break;
     case AceButton::kEventDoubleClicked:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventDoubleClicked event detected\n");
+      DEBUG_PRINTLN(F(": kEventDoubleClicked event detected"));
       if(led3.isOn()) {
         led3.dimDown(round(255 * 0.2)); // dim down 20%
       } else {
@@ -592,7 +613,7 @@ void handleBedEvent(AceButton* button, uint8_t eventType, uint8_t buttonState) {
       break;
     case AceButton::kEventLongPressed:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventLongPressed event detected\n");
+      DEBUG_PRINTLN(F(": kEventLongPressed event detected"));
       if(led1.isOn() || led2.isOn() || led3.isOn()) {
         led1.off();
         led2.off();
@@ -622,13 +643,13 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
   switch (eventType) {
     case AceButton::kEventClicked:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventClicked event detected\n");
+      DEBUG_PRINTLN(F(": kEventClicked event detected"));
       switch (button->getId()) {
         case 0:
           if(strip1.isRunning()) {
             strip1.stop();
           } else {
-            strip1.setColor(WHITE_LED);
+            strip1.setColor(WHITE);
             strip1.setMode(FX_MODE_STATIC);
             strip1.start();
           }
@@ -637,7 +658,7 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
           if(strip2.isRunning()) {
             strip2.stop();
           } else {
-            strip2.setColor(WHITE_LED);
+            strip2.setColor(WHITE);
             strip2.setMode(FX_MODE_STATIC);
             strip2.start();
           }
@@ -646,11 +667,11 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
       break;
     case AceButton::kEventDoubleClicked:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventDoubleClicked event detected\n");
+      DEBUG_PRINTLN(F(": kEventDoubleClicked event detected"));
       switch (button->getId()) {
         case 0:
           s = SIZE(effects1);
-          e = getIndex(effects1, s, strip1.getMode());
+          e = getNextEffect(effects1, s, strip1.getMode());
           if(e >= s) {
             strip1.setMode(0);
             strip1.stop();
@@ -664,7 +685,7 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
           break;
         case 1:
           s = SIZE(effects2);
-          e = getIndex(effects2, s, strip2.getMode());
+          e = getNextEffect(effects2, s, strip2.getMode());
           if(e >= s) {
             strip2.setMode(0);
             strip2.stop();
@@ -680,7 +701,7 @@ void handleStripEvent(AceButton* button, uint8_t eventType, uint8_t buttonState)
       break;
     case AceButton::kEventLongPressed:
       DEBUG_PRINT(button->getId());
-      DEBUG_PRINT(": kEventLongPressed event detected\n");
+      DEBUG_PRINTLN(F(": kEventLongPressed event detected"));
       switch (button->getId()) {
         case 0:
           // Sync 1 => 2
